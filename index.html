@@ -1,0 +1,2612 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Bán Hàng & Kê Khai Thuế Quán Ăn Online</title>
+    <!-- Nhúng thư viện Chart.js để vẽ biểu đồ doanh thu & lợi nhuận -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f4f6f8; color: #333; padding-bottom: 90px; }
+        
+        /* Top Navigation Switch Mode */
+        .app-header { background: #2c3e50; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 150; flex-wrap: wrap; gap: 10px; }
+        .app-title { font-size: 1.1rem; font-weight: bold; }
+        .header-right-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .mode-switch { display: flex; background: #34495e; border-radius: 20px; padding: 3px; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .mode-btn { border: none; background: transparent; color: #ccc; padding: 6px 14px; border-radius: 17px; cursor: pointer; font-weight: bold; font-size: 0.85rem; transition: 0.3s; }
+        .mode-btn.active { background: #ff7e5f; color: white; }
+        .logout-btn { background: #e74c3c; color: white; border: none; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; cursor: pointer; display: none; }
+        
+        /* Language Switcher */
+        .lang-select { background: #34495e; color: white; border: 1px solid #4e6d8c; padding: 5px 10px; border-radius: 15px; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
+
+        /* Main Header Info */
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            background-color: #ffffff;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 15px auto;
+            max-width: 900px;
+        }
+        .menu-title { margin: 0; font-size: 22px; color: #333333; }
+        .header-info { text-align: right; font-size: 14px; color: #555555; line-height: 1.5; }
+        .header-info p { margin: 0; }
+        .header-info a { color: #0066cc; text-decoration: none; font-weight: bold; }
+
+        /* View Sections */
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+
+        /* Layout Container */
+        .container { max-width: 900px; margin: 15px auto; padding: 0 15px; }
+
+        /* Filter & Action Bar */
+        .action-bar-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        .filter-btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .filter-btn { padding: 6px 14px; border: none; border-radius: 15px; background: #e0e0e0; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
+        .filter-btn.active { background: #ff7e5f; color: white; }
+
+        .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; }
+        .product-card { background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex; flex-direction: column; justify-content: space-between; }
+        .product-img { width: 100%; height: 120px; object-fit: cover; }
+        .product-info { padding: 10px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .product-title { font-size: 0.95rem; font-weight: bold; }
+        .product-desc { font-size: 0.75rem; color: #666; margin: 4px 0 8px; }
+        .product-price { color: #e63946; font-weight: bold; font-size: 0.9rem; margin-bottom: 8px; }
+        .add-btn { background: #ff7e5f; color: white; border: none; padding: 8px; width: 100%; border-radius: 6px; cursor: pointer; font-weight: bold; }
+
+        /* Bottom Cart Bar */
+        .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #ddd; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 100; }
+        .cart-total { color: #e63946; font-weight: bold; font-size: 1.1rem; }
+        .checkout-btn { background: #25d366; color: white; border: none; padding: 10px 18px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+
+        /* Admin Styles */
+        .admin-card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+        .admin-card-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .admin-card h3 { margin: 0; font-size: 1.1rem; color: #2c3e50; border-bottom: 2px solid #ff7e5f; padding-bottom: 5px; display: inline-block; }
+        .admin-card-body { margin-top: 15px; display: none; }
+        .admin-card.expanded .admin-card-body { display: block; }
+        .toggle-icon { font-size: 0.85rem; font-weight: bold; background: #e0e0e0; padding: 4px 10px; border-radius: 12px; color: #333; }
+        
+        /* Revenue Dashboard Cards */
+        .revenue-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 15px; }
+        .stat-box { background: #f8f9fa; border-left: 4px solid #3498db; padding: 12px; border-radius: 6px; }
+        .stat-box.green { border-left-color: #2ecc71; }
+        .stat-box.orange { border-left-color: #e67e22; }
+        .stat-box.purple { border-left-color: #9b59b6; }
+        .stat-box.teal { border-left-color: #1abc9c; }
+        .stat-title { font-size: 0.8rem; color: #666; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+        .stat-value { font-size: 1.25rem; font-weight: bold; color: #2c3e50; }
+
+        .revenue-filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
+        .revenue-filter-bar select, .revenue-filter-bar input { padding: 6px 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.85rem; }
+
+        /* Table Top Products */
+        .top-products-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+        .top-products-table th, .top-products-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #eee; }
+        .top-products-table th { background-color: #f8f9fa; color: #2c3e50; font-weight: bold; }
+        .top-products-table tr:hover { background-color: #fafafa; }
+
+        .order-item { border: 1px solid #eee; border-radius: 8px; padding: 12px; margin-bottom: 10px; background: #fff; }
+        .order-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem; color: #666; }
+        .order-customer { font-weight: bold; font-size: 1rem; color: #2c3e50; margin-bottom: 4px; }
+        .order-detail-list { margin: 8px 0; padding-left: 18px; font-size: 0.9rem; }
+        .order-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+        .btn-call { background: #2980b9; color: white; text-decoration: none; padding: 6px 12px; border-radius: 5px; font-size: 0.85rem; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; }
+        
+        .btn-status { padding: 6px 10px; border-radius: 5px; border: none; cursor: pointer; font-size: 0.8rem; font-weight: bold; display: inline-block; }
+        .status-new { background: #ffeaa7; color: #d63031; }
+        .status-shipping { background: #74b9ff; color: #0984e3; }
+        .status-success { background: #55efc4; color: #00b894; }
+        .payment-unpaid { background: #fab1a0; color: #d63031; }
+        .payment-paid { background: #55efc4; color: #00b894; }
+
+        .tier-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: bold; color: white; margin-left: 5px; }
+        .tier-bronze { background: #cd7f32; }
+        .tier-silver { background: #718093; }
+        .tier-gold { background: #f1c40f; color: #333; }
+        .tier-diamond { background: #00d2d3; }
+
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
+
+        .preview-container {
+            margin-top: 8px; width: 100px; height: 100px; border: 2px dashed #ccc; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #fafafa;
+        }
+        .preview-container img { width: 100%; height: 100%; object-fit: cover; display: none; }
+        .preview-text { color: #888; font-size: 11px; text-align: center; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 200; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 450px; max-height: 85vh; overflow-y: auto; }
+        .cart-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #eee; }
+        .qty-btn { width: 24px; height: 24px; border-radius: 50%; border: 1px solid #ff7e5f; background: white; color: #ff7e5f; font-weight: bold; cursor: pointer; }
+        
+        .login-box { text-align: center; }
+        .login-box h3 { margin-bottom: 15px; color: #2c3e50; }
+        .login-box input { margin-bottom: 15px; text-align: center; font-size: 1.1rem; letter-spacing: 2px; }
+        .login-err { color: #e74c3c; font-size: 0.85rem; margin-bottom: 10px; display: none; }
+
+        @media (max-width: 600px) {
+            .main-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .header-info { text-align: left; }
+        }
+    </style>
+</head>
+<body>
+
+  <!-- Thanh Điều Hướng Chuyển Vai Trò & Ngôn Ngữ -->
+  <div class="app-header">
+    <div class="app-title" data-i18n="appTitle">🍿 Tiệm Ăn Vặt Online</div>
+    <div class="header-right-group">
+      <select id="lang-switcher" class="lang-select" onchange="changeLanguage(this.value)">
+        <option value="vi">🇻🇳 Tiếng Việt</option>
+        <option value="en">🇬🇧 English</option>
+      </select>
+      <div class="mode-switch">
+        <button class="mode-btn active" id="btn-customer-mode" onclick="switchMode('customer')" data-i18n="modeCustomer">Khách Hàng</button>
+        <button class="mode-btn" id="btn-staff-mode" onclick="switchMode('staff')" data-i18n="modeStaff">Nhân Viên 🛒</button>
+        <button class="mode-btn" id="btn-admin-mode" onclick="switchMode('admin')" data-i18n="modeAdmin">Chủ Tiệm 🔒</button>
+        <button class="logout-btn" id="btn-logout" onclick="logoutSystem()" data-i18n="logout">Thoát 🚪</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header Thông tin cửa hàng -->
+  <header class="main-header">
+      <h1 class="menu-title" data-i18n="mainMenuTitle">Menu Ăn vặt & Trà sữa</h1>
+      <div class="header-info">
+          <p><strong data-i18n="addressLabel">Địa chỉ:</strong> Vinhomes Vũ Yên, Hải Phòng</p>
+          <p><strong data-i18n="mobileLabel">Mobile:</strong> <a href="tel:0978914096">0978914096</a></p>
+      </div>
+  </header>
+
+  <!-- ================= GIAO DIỆN KHÁCH HÀNG ================= -->
+  <div id="customer-view" class="view-section active">
+    <div class="container" style="margin-top: 0;">
+      <div class="action-bar-top">
+        <div class="filter-btn-group">
+          <button class="filter-btn active" onclick="filterMenu('all', event)" data-i18n="filterAll">Tất cả</button>
+          <button class="filter-btn" onclick="filterMenu('ca-phe', event)" data-i18n="filterCoffee">Cà phê & Đồ nóng</button>
+          <button class="filter-btn" onclick="filterMenu('tra', event)" data-i18n="filterTea">Các loại Trà</button>
+          <button class="filter-btn" onclick="filterMenu('sinh-to-sua', event)" data-i18n="filterSmoothie">Sinh tố & Sữa lắc</button>
+          <button class="filter-btn" onclick="filterMenu('nuoc-khac', event)" data-i18n="filterOther">Nước ép & Đồ khác</button>
+          <button class="filter-btn" onclick="filterMenu('thuoc-la', event)" data-i18n="filterTobacco">Thuốc lá & Đồ ăn vặt</button>
+        </div>
+      </div>
+      <div class="menu-grid" id="menu-container"></div>
+    </div>
+
+    <div class="cart-bar">
+      <div onclick="openCartModal()" style="cursor:pointer">
+        🛒 <span data-i18n="cartTitle">Giỏ hàng</span>: <span id="cart-count">0</span> <span data-i18n="itemsCount">món</span><br>
+        <span data-i18n="totalLabel">Tổng</span>: <span class="cart-total" id="cart-total">0đ</span>
+      </div>
+      <button class="checkout-btn" onclick="openCartModal()" data-i18n="viewCartBtn">Xem Giỏ Hàng</button>
+    </div>
+  </div>
+
+  <!-- ================= GIAO DIỆN NHÂN VIÊN BÁN QUẦY ================= -->
+  <div id="staff-view" class="view-section">
+    <div class="container">
+      
+      <div class="admin-card expanded" style="border-left: 4px solid #27ae60;">
+        <div class="admin-card-header" onclick="toggleCard(this)">
+          <h3 data-i18n="staffRevToday">💰 Thống Kê Doanh Thu Hôm Nay</h3>
+          <span class="toggle-icon" data-i18n="collapse">Thu gọn ✖</span>
+        </div>
+        <div class="admin-card-body" style="display: block;">
+          <p style="font-size: 0.8rem; color: #666; margin-bottom: 10px;" data-i18n="staffRevNote">Doanh thu chỉ được ghi nhận khi đơn tại quầy <strong>Đã thanh toán</strong> (hoặc đơn online <strong>Giao thành công</strong>).</p>
+          <div class="revenue-stats-grid">
+            <div class="stat-box" style="border-left-color: #e67e22;">
+              <div class="stat-title" data-i18n="statCash">💵 Tiền Mặt (Tại Quầy)</div>
+              <div class="stat-value" id="staff-stat-cash" style="color: #e67e22;">0đ</div>
+            </div>
+            <div class="stat-box" style="border-left-color: #2980b9;">
+              <div class="stat-title" data-i18n="statTransfer">📱 Chuyển Khoản (QR Quầy)</div>
+              <div class="stat-value" id="staff-stat-transfer" style="color: #2980b9;">0đ</div>
+            </div>
+            <div class="stat-box teal" style="border-left-color: #1abc9c;">
+              <div class="stat-title" data-i18n="statOnline">🛵 Doanh Thu Online</div>
+              <div class="stat-value" id="staff-stat-online" style="color: #1abc9c;">0đ</div>
+            </div>
+            <div class="stat-box green" style="grid-column: 1 / -1;">
+              <div class="stat-title" data-i18n="statTotalToday">📊 Tổng Doanh Thu (Hôm Nay)</div>
+              <div class="stat-value" id="staff-stat-total" style="color: #27ae60; font-size: 1.5rem;">0đ</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-card expanded" style="border-left: 4px solid #3498db;">
+        <div class="admin-card-header" onclick="toggleCard(this)">
+          <h3 data-i18n="staffOrderListTitle">📋 Danh Sách Đơn Hàng & Trạng Thái Tại Quầy</h3>
+          <span class="toggle-icon" data-i18n="collapse">Thu gọn ✖</span>
+        </div>
+        <div class="admin-card-body" style="display: block;">
+          <p style="font-size: 0.8rem; color: #666; margin-bottom: 10px;" data-i18n="staffOrderNote">Nhân viên có thể bấm <strong>"Gọi thêm món"</strong> cho khách tại bàn chưa thanh toán, hoặc xác nhận thanh toán tiền mặt / QR.</p>
+          <div id="staff-order-list-container"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= GIAO DIỆN CHỦ TIỆM (ADMIN) ================= -->
+  <div id="admin-view" class="view-section">
+    <div class="container">
+      
+      <!-- MỤC KÊ KHAI VÀ TÍNH THUẾ MỚI THEO QUY ĐỊNH NHÀ NƯỚC (Mặc định thu gọn) -->
+      <div class="admin-card" id="card-tax-declaration" style="border-left: 4px solid #d35400;">
+        <div class="admin-card-header" onclick="toggleCard(this)">
+          <h3>🏛️ Kê Khai & Tính Thuế Hộ Kinh Doanh (Theo Quy Định Mới)</h3>
+          <span class="toggle-icon">Hiện 🔍</span>
+        </div>
+        <div class="admin-card-body">
+          <p style="font-size: 0.8rem; color: #666; margin-bottom: 12px;">
+            Hệ thống tự động tính toán nghĩa vụ thuế (GTGT và TNCN) dựa trên tổng doanh thu thực tế và mức thuế suất theo quy định: Doanh thu dưới 1 tỷ miễn thuế; từ 1 tỷ đến 3 tỷ, 3 tỷ đến 5 tỷ, 5 tỷ đến 10 tỷ và trên 10 tỷ.
+          </p>
+
+          <div style="background: #fdfefe; padding: 12px; border: 1px solid #ebedef; border-radius: 6px; margin-bottom: 15px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+            <div>
+              <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px;">Chọn Mức Doanh Thu (Hoặc Tự Động Thực Tế):</label>
+              <select id="tax-tier-select" onchange="calculateTaxObligation()" style="padding: 7px 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.85rem;">
+                <option value="auto">📊 Lấy theo Doanh Thu Thực Tế Hệ Thống (Mặc định)</option>
+                <option value="tier1">Dưới 1 tỷ đồng (&lt; 1 tỷ)</option>
+                <option value="tier2">Từ 1 tỷ đến 3 tỷ đồng (1 - 3 tỷ)</option>
+                <option value="tier3">Trên 3 tỷ đến 5 tỷ đồng (3 - 5 tỷ)</option>
+                <option value="tier4">Trên 5 tỷ đến 10 tỷ đồng (5 - 10 tỷ)</option>
+                <option value="tier5">Từ 10 tỷ đồng trở lên (&ge; 10 tỷ)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px;">Ngành Nghề Kinh Doanh (Tỷ lệ tính thuế):</label>
+              <select id="tax-industry-select" onchange="calculateTaxObligation()" style="padding: 7px 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.85rem;">
+                <option value="retail">Phân phối, bán lẻ hàng hóa (GTGT 1%, TNCN 0.5%)</option>
+                <option value="service">Dịch vụ ăn uống / F&B (GTGT 3%, TNCN 1.5%)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="revenue-stats-grid">
+            <div class="stat-box" style="border-left-color: #2980b9;">
+              <div class="stat-title">Doanh Thu Căn Cứ Tính Thuế</div>
+              <div class="stat-value" id="tax-base-revenue" style="color: #2980b9;">0đ</div>
+            </div>
+            <div class="stat-box orange" style="border-left-color: #e67e22;">
+              <div class="stat-title">Thuế GTGT Phải Nộp</div>
+              <div class="stat-value" id="tax-vat-val" style="color: #e67e22;">0đ</div>
+            </div>
+            <div class="stat-box purple" style="border-left-color: #8e44ad;">
+              <div class="stat-title">Thuế TNCN Phải Nộp</div>
+              <div class="stat-value" id="tax-pit-val" style="color: #8e44ad;">0đ</div>
+            </div>
+            <div class="stat-box green" style="border-left-color: #27ae60; grid-column: 1 / -1;">
+              <div class="stat-title">Tổng Nghĩa Vụ Thuế Phải Nộp</div>
+              <div class="stat-value" id="tax-total-val" style="color: #27ae60; font-size: 1.4rem;">0đ</div>
+            </div>
+          </div>
+
+          <div id="tax-note-desc" style="background: #eaf2f8; padding: 10px; border-radius: 6px; font-size: 0.85rem; color: #2c3e50; margin-top: 10px;">
+            ℹ️ Trạng thái: Đang áp dụng chính sách miễn giảm cho hộ kinh doanh quy mô doanh thu dưới 1 tỷ đồng.
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-card" id="card-revenue">
+        <div class="admin-card-header" onclick="toggleCard(this)">
+          <h3 data-i18n="adminRevProfit">📊 Thống Kê Doanh Thu & Lợi Nhuận</h3>
+          <span class="toggle-icon" data-i18n="expand">Hiện 🔍</span>
+        </div>
+        <div class="admin-card-body">
+          <p style="font-size: 0.75rem; color: #666; margin-bottom: 10px;" data-i18n="adminRevNote">Chỉ tính toán doanh thu khi đơn tại quầy <strong>Đã thanh toán</strong> hoặc đơn online <strong>Giao thành công</strong>.</p>
+          
+          <div class="revenue-filter-bar">
+            <div>
+              <label style="font-size:0.75rem; font-weight:bold;" data-i18n="viewBy">Xem theo:</label>
+              <select id="rev-type" onchange="toggleRevInputs()">
+                <option value="day" data-i18n="optDay">Theo Ngày</option>
+                <option value="month" data-i18n="optMonth">Theo Tháng</option>
+                <option value="year" data-i18n="optYear">Theo Năm</option>
+              </select>
+            </div>
+            <div id="filter-input-wrapper"></div>
+          </div>
+
+          <div class="revenue-stats-grid">
+            <div class="stat-box">
+              <div class="stat-title" data-i18n="revSuccess">Doanh Thu Thành Công</div>
+              <div class="stat-value" id="stat-revenue" style="color: #2980b9;">0đ</div>
+            </div>
+            <div class="stat-box orange">
+              <div class="stat-title" data-i18n="totalCost">Tổng Vốn (Giá Vốn Bán Ra)</div>
+              <div class="stat-value" id="stat-cost" style="color: #e67e22;">0đ</div>
+            </div>
+            <div class="stat-box green">
+              <div class="stat-title" data-i18n="realProfit">Lợi Nhuận Thực Tế</div>
+              <div class="stat-value" id="stat-profit" style="color: #27ae60;">0đ</div>
+            </div>
+            <div class="stat-box purple">
+              <div class="stat-title" data-i18n="materialTotalCost">Tổng Chi Phí Nguyên Liệu Kho</div>
+              <div class="stat-value" id="stat-material-total" style="color: #8e44ad;">0đ</div>
+            </div>
+          </div>
+
+          <!-- BẢNG TOP 5 SẢN PHẨM BÁN CHẠY NHẤT -->
+          <div style="background: #fafafa; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-top: 15px;">
+            <h4 style="font-size: 0.95rem; margin-bottom: 8px; color: #2c3e50;" data-i18n="topProductsTitle">🏆 Top 5 Sản Phẩm Doanh Thu & Lợi Nhuận Cao Nhất</h4>
+            <p style="font-size: 0.75rem; color: #666; margin-bottom: 8px;" data-i18n="topProductsDesc">Thống kê xu hướng thị hiếu khách hàng dựa trên các đơn hàng thành công.</p>
+            <div style="overflow-x: auto;">
+              <table class="top-products-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="colProduct">Sản phẩm</th>
+                    <th data-i18n="colSoldQty">Đã bán</th>
+                    <th data-i18n="colRevenue">Doanh thu</th>
+                    <th data-i18n="colProfit">Lợi nhuận</th>
+                  </tr>
+                </thead>
+                <tbody id="top-products-tbody">
+                  <tr><td colspan="4" style="text-align:center; color:#888;" data-i18n="noDataYet">Chưa có dữ liệu</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- BIỂU ĐỒ TRỰC QUAN CHART.JS -->
+          <div style="background: #fdfdfd; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 15px;">
+            <h4 style="font-size: 0.95rem; margin-bottom: 10px; color: #2c3e50; text-align: center;" data-i18n="chartTitleLabel">📈 Biểu Đồ Xu Hướng Doanh Thu & Lợi Nhuận</h4>
+            <div style="position: relative; height: 260px; width: 100%;">
+              <canvas id="revenueChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CÀI ĐẶT CHƯƠNG TRÌNH TÍCH ĐIỂM & TRI ÂN (Mặc định thu gọn) -->
+      <div class="admin-card" id="card-loyalty-config" style="border-left: 4px solid #e67e22;">
+        <div class="admin-card-header" onclick="toggleCard(this)">
+          <h3 data-i18n="adminLoyaltyConfigTitle">⚙️ Cài Đặt Chương Trình Tích Điểm & Tri Ân</h3>
+          <span class="toggle-icon" data-i18n="expand">Hiện 🔍</span>
+        </div>
+        <div class="admin-card-body">
+          <p style="font-size: 0.8rem; color: #666; margin-bottom: 12px;" data-i18n="adminLoyaltyConfigNote">Tùy biến giá trị tiền quy đổi cho mỗi điểm tích lũy của khách hàng khi đổi quà/giảm giá.</p>
+          
+          <div style="background: #fafafa; padding: 12px; border-radius: 6px; border: 1px solid #eee; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <div style="flex-grow: 1;">
+              <label style="font-size: 0.85rem; font-weight: bold; display: block; margin-bottom: 4px;" data-i18n="pointValueLabel">Giá trị quy đổi (1 điểm = ? VNĐ):</label>
+              <input type="number" id="admin-point-value-input" placeholder="Ví dụ: 1000" style="padding: 8px; border: 1px solid #ccc; border-radius: 6px; width: 100%; max-width: 250px;">
+            </div>
+            <button onclick="savePointValueConfig()" style="background:#e67e22; color:white; border:none; padding:9px 18px; border-radius:6px; font-weight:bold; cursor:pointer; height: 38px; margin-top: 18px;" data-i18n="saveConfigBtn">Lưu Cài Đặt</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-card" id="card-loyalty">
+        <div class="admin-card-header" onclick="toggleCard(this)">
+          <h3 data-i18n="adminLoyaltyTitle">👑 Quản Lý Khách Hàng Thân Thiết & Điểm Tích Lũy</h3>
+          <span class="toggle-icon" data-i18n="expand">Hiện 🔍</span>
+        </div>
+        <div class="admin-card-body">
+          <p style="font-size: 0.8rem; color: #666; margin-bottom: 12px;" data-i18n="adminLoyaltyNote">Theo dõi điểm số, hạng hội viên và điều chỉnh điểm tích lũy của khách hàng.</p>
+          <div id="admin-customer-list"></div>
+        </div>
+      </div>
+
+      <div class="admin-card" id="card-materials">
+        <div class="admin-card-header" onclick="toggleCard(this)">
+          <h3 data-i18n="adminMaterialTitle">📦 Quản Lý Nguyên Vật Liệu Đầu Vào</h3>
+          <span class="toggle-icon" data-i18n="expand">Hiện 🔍</span>
+        </div>
+        <div class="admin-card-body">
+          <p style="font-size: 0.8rem; color: #666; margin-bottom: 12px;" data-i18n="adminMaterialNote">Thêm và theo dõi các khoản chi phí nhập nguyên vật liệu, dụng cụ của quán.</p>
+          
+          <form id="add-material-form" onsubmit="addNewMaterial(event)" style="background: #fafafa; padding: 12px; border-radius: 6px; border: 1px solid #eee; margin-bottom: 15px;">
+            <h4 style="font-size: 0.95rem; margin-bottom: 8px; color: #2c3e50;" data-i18n="addMaterialHeader">➕ Nhập Nguyên Vật Liệu Mới</h4>
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 8px; align-items: flex-end;" id="material-form-grid">
+              <div class="form-group" style="margin-bottom:0;">
+                <label data-i18n="matNameLabel">Tên nguyên liệu:</label>
+                <input type="text" id="mat-name" required placeholder="Ví dụ: Sữa đặc, Chân gà...">
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label data-i18n="matUnitLabel">Đơn vị tính:</label>
+                <input type="text" id="mat-unit" required placeholder="Kg, Thùng...">
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label data-i18n="matPriceLabel">Giá nhập (VNĐ):</label>
+                <input type="number" id="mat-price" required placeholder="50000">
+              </div>
+              <button type="submit" style="background:#8e44ad; color:white; border:none; padding:8px 14px; border-radius:6px; font-weight:bold; cursor:pointer; height: 38px;" data-i18n="btnAdd">Thêm</button>
+            </div>
+          </form>
+
+          <div id="admin-material-list"></div>
+        </div>
+      </div>
+
+      <div class="admin-card" id="card-orders">
+        <div class="admin-card-header" onclick="toggleCard(this)">
+          <h3 data-i18n="adminOrderListTitle">📋 Danh Sách Đơn Hàng & Trạng Thái</h3>
+          <span class="toggle-icon" data-i18n="expand">Hiện 🔍</span>
+        </div>
+        <div class="admin-card-body">
+          <p style="font-size: 0.8rem; color: #666; margin-bottom: 10px;" data-i18n="adminOrderNote">Quản lý toàn bộ trạng thái đơn hàng (Đơn tại quầy đã thanh toán sẽ bị khóa cố định).</p>
+          <div id="order-list-container"></div>
+        </div>
+      </div>
+
+      <div class="admin-card" id="card-add-product">
+        <div class="admin-card-header" onclick="toggleCard(this)">
+          <h3 data-i18n="adminAddProductTitle">➕ Thêm Món Mới Vào Menu Bán Hàng</h3>
+          <span class="toggle-icon" data-i18n="expand">Hiện 🔍</span>
+        </div>
+        <div class="admin-card-body">
+          <form id="add-product-form" onsubmit="addNewProduct(event)">
+            <div class="form-group">
+              <label data-i18n="prodNameLabel">Tên món (Tiếng Việt):</label>
+              <input type="text" id="new-p-name" required placeholder="Ví dụ: Bánh Tráng Trộn Bơ">
+            </div>
+            <div class="form-group">
+              <label data-i18n="prodNameEnLabel">Tên món (Tiếng Anh - English Name):</label>
+              <input type="text" id="new-p-name-en" required placeholder="E.g., Butter Mixed Rice Paper">
+            </div>
+            <div class="form-group">
+              <label data-i18n="prodCategoryLabel">Loại món:</label>
+              <select id="new-p-category">
+                <option value="ca-phe" data-i18n="filterCoffee">Cà phê & Đồ nóng</option>
+                <option value="tra" data-i18n="filterTea">Các loại Trà</option>
+                <option value="sinh-to-sua" data-i18n="filterSmoothie">Sinh tố & Sữa lắc</option>
+                <option value="nuoc-khac" data-i18n="filterOther">Nước ép & Đồ khác</option>
+                <option value="thuoc-la" data-i18n="filterTobacco">Thuốc lá & Đồ ăn vặt</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label data-i18n="prodPriceLabel">Giá bán (VNĐ):</label>
+              <input type="number" id="new-p-price" required placeholder="25000">
+            </div>
+            <div class="form-group">
+              <label data-i18n="prodCostLabel">Chi phí đầu vào / Giá vốn tính sản phẩm (VNĐ):</label>
+              <input type="number" id="new-p-cost" required placeholder="10000">
+            </div>
+            <div class="form-group">
+              <label data-i18n="prodDescLabel">Mô tả ngắn (Tiếng Việt):</label>
+              <input type="text" id="new-p-desc" placeholder="Chua ngọt, béo ngậy...">
+            </div>
+            <div class="form-group">
+              <label data-i18n="prodDescEnLabel">Mô tả ngắn (Tiếng Anh - English Desc):</label>
+              <input type="text" id="new-p-desc-en" placeholder="Sweet and sour, creamy...">
+            </div>
+            <div class="form-group">
+              <label data-i18n="prodImgLabel">Chọn hình ảnh từ máy tính:</label>
+              <input type="file" id="new-p-img-file" accept="image/*" onchange="previewImage(event)" required>
+              <div class="preview-container">
+                  <span class="preview-text" id="preview-text" data-i18n="noImg">Chưa có ảnh</span>
+                  <img id="image-preview" src="" alt="Xem trước hình ảnh">
+              </div>
+            </div>
+            <button type="submit" style="background:#27ae60; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold; width:100%; cursor:pointer; margin-top: 10px;" data-i18n="saveNewProdBtn">Lưu Món Mới</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="admin-card" id="card-manage-menu">
+        <div class="admin-card-header" onclick="toggleCard(this)">
+          <h3 data-i18n="adminManageMenuTitle">✏️ Quản Lý Món, Cập Nhật Giá Bán, Giá Vốn & Đổi Mật Khẩu</h3>
+          <span class="toggle-icon" data-i18n="expand">Hiện 🔍</span>
+        </div>
+        <div class="admin-card-body">
+          <p style="font-size: 0.8rem; color: #666; margin-bottom: 10px;" data-i18n="adminManageMenuNote">Chỉnh sửa trực tiếp giá bán, chi phí đầu vào hoặc xóa món tại đây.</p>
+          <div id="admin-menu-list"></div>
+          
+          <hr style="margin: 15px 0; border: none; border-top: 1px dashed #ccc;">
+          <div style="font-size: 0.9rem; margin-bottom: 10px;">
+            <strong data-i18n="changeAdminPassLabel">🔒 Đổi mật khẩu Chủ Tiệm:</strong>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <input type="password" id="new-admin-pass" placeholder="Mật khẩu mới" style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+              <button onclick="changeAdminPass()" style="background:#2980b9; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer;" data-i18n="changePassBtn">Đổi MK Chủ Tiệm</button>
+            </div>
+          </div>
+          <div style="font-size: 0.9rem;">
+            <strong data-i18n="changeStaffPassLabel">🔒 Đổi mật khẩu Nhân Viên Bán Quầy:</strong>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <input type="password" id="new-staff-pass" placeholder="Mật khẩu mới" style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+              <button onclick="changeStaffPass()" style="background:#2980b9; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer;" data-i18n="changePassBtn">Đổi MK Nhân Viên</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL ĐĂNG NHẬP -->
+  <div class="modal" id="login-modal">
+    <div class="modal-content login-box">
+      <h3 id="login-modal-title" data-i18n="loginModalTitle">🔑 Xác Nhận Đăng Nhập</h3>
+      <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;" id="login-modal-desc" data-i18n="loginModalDesc">Vui lòng nhập mật khẩu để tiếp tục.</p>
+      <input type="password" id="pass-input" placeholder="Nhập mật khẩu..." onkeyup="if(event.key==='Enter') confirmLogin()">
+      <div class="login-err" id="login-err-msg" data-i18n="loginErr">Mật khẩu không chính xác!</div>
+      <div style="display:flex; justify-content:center; gap:10px;">
+        <button onclick="closeLoginModal()" style="padding:8px 15px; border:none; border-radius:6px; background:#ccc; cursor:pointer;" data-i18n="cancelBtn">Hủy</button>
+        <button onclick="confirmLogin()" style="padding:8px 18px; border:none; border-radius:6px; background:#ff7e5f; color:white; font-weight:bold; cursor:pointer;" data-i18n="loginBtn">Đăng Nhập</button>
+      </div>
+      <p style="font-size: 0.75rem; color: #888; margin-top: 12px;" id="login-default-hint">(Mật khẩu mặc định: <b>123456</b>)</p>
+    </div>
+  </div>
+
+  <!-- MODAL GIỎ HÀNG KHÁCH HÀNG -->
+  <div class="modal" id="cart-modal">
+    <div class="modal-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 data-i18n="cartModalTitle">🛒 Giỏ Hàng Của Bạn</h3>
+        <button onclick="closeCartModal()" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">✖</button>
+      </div>
+      <div id="cart-items-container"></div>
+      
+      <div style="margin-top: 15px; text-align: right; font-weight: bold;">
+        <span data-i18n="totalAmount">Tổng tiền:</span> <span style="color: #e63946;" id="modal-cart-total">0đ</span>
+      </div>
+      
+      <div style="margin-top: 12px;">
+        <label style="font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; display:block;" data-i18n="orderTypeLabel">Hình thức mua hàng:</label>
+        <select id="cart-order-type" onchange="toggleOrderTypeOptions()" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem;">
+          <option value="online" data-i18n="optOnline">🛵 Giao hàng tận nơi (Online / Zalo)</option>
+          <option value="onsite" data-i18n="optOnsite">🏪 Ăn tại quán / Mua trực tiếp tại quầy</option>
+        </select>
+      </div>
+
+      <div style="margin-top: 12px;" id="payment-method-group">
+        <label style="font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; display:block;" data-i18n="paymentMethodLabel">Trạng thái thanh toán ban đầu:</label>
+        <select id="cart-payment-method" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem;">
+          <option value="cod" data-i18n="optCod">💵 Thanh toán khi nhận hàng (COD / Gửi Zalo)</option>
+          <option value="qr" data-i18n="optQr">📱 Quét mã QR Chuyển khoản ngân hàng</option>
+        </select>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; margin-top:15px;">
+        <button onclick="clearCart()" style="background:#ff4d4d; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;" data-i18n="clearCartBtn">Xóa sạch</button>
+        <button onclick="goToCheckout()" style="background:#25d366; color:white; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" data-i18n="checkoutBtn">Tiến hành đặt hàng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ĐIỀN THÔNG TIN GIAO HÀNG ONLINE & TÍCH ĐIỂM -->
+  <div class="modal" id="checkout-modal">
+    <div class="modal-content">
+      <h3 id="checkout-modal-title" data-i18n="checkoutModalTitle">📍 Thông Tin Giao Hàng Online</h3>
+      
+      <div class="form-group" style="margin-top:10px;">
+        <label id="label-name" data-i18n="labelName">Họ và tên:</label>
+        <input type="text" id="customer-name" placeholder="Họ và tên của bạn">
+      </div>
+      <div class="form-group">
+        <label data-i18n="labelPhone">Số điện thoại (Dùng tích điểm):</label>
+        <div style="display:flex; gap:6px;">
+          <input type="tel" id="customer-phone" placeholder="09xxxxxxx">
+          <button type="button" onclick="checkCustomerPoints()" style="background:#2980b9; color:white; border:none; padding:0 10px; border-radius:6px; font-weight:bold; font-size:0.8rem; cursor:pointer; whitespace:nowrap;" data-i18n="checkPointsBtn">Tra điểm</button>
+        </div>
+      </div>
+
+      <div id="loyalty-info-box" style="display:none; background:#f0f9ff; border:1px solid #b3e5fc; padding:10px; border-radius:6px; margin-bottom:10px; font-size:0.85rem;">
+        <div>👤 <strong id="loyalty-cust-name">Khách hàng</strong> - <span id="loyalty-cust-tier">Bronze</span></div>
+        <div>⭐️ <span data-i18n="availablePoints">Điểm hiện có:</span> <strong id="loyalty-cust-points" style="color:#e67e22;">0</strong> <span data-i18n="pointsUnit">điểm</span></div>
+        <div style="margin-top:6px; display:flex; gap:6px; align-items:center;">
+          <input type="checkbox" id="use-points-checkbox" onchange="toggleUsePoints()">
+          <label for="use-points-checkbox" style="font-size:0.8rem; font-weight:bold; cursor:pointer;" id="use-points-label">Dùng điểm để giảm giá</label>
+        </div>
+      </div>
+
+      <div class="form-group" id="address-group">
+        <label data-i18n="labelAddress">Địa chỉ giao hàng:</label>
+        <textarea id="customer-address" rows="2" placeholder="Địa chỉ giao hàng chi tiết..."></textarea>
+      </div>
+
+      <div style="background:#fff3cd; padding:8px; border-radius:6px; font-size:0.85rem; margin-bottom:10px; text-align:right;">
+        <div><span data-i18n="subtotalLabel">Tạm tính:</span> <span id="checkout-subtotal-val">0đ</span></div>
+        <div id="discount-row" style="display:none; color:#d63031;"><span data-i18n="discountLabel">Giảm giá điểm:</span> -<span id="checkout-discount-val">0đ</span></div>
+        <div style="font-weight:bold; font-size:1rem; color:#e63946; margin-top:4px;"><span data-i18n="finalTotalLabel">Thành tiền:</span> <span id="checkout-final-val">0đ</span></div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+        <button onclick="closeCheckoutModal()" style="padding:8px 12px; border:none; border-radius:5px; cursor:pointer;" data-i18n="cancelBtn">Hủy</button>
+        <button onclick="processOrderCheckout()" id="btn-submit-order" style="background:#25d366; color:white; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" data-i18n="confirmOrderBtn">Xác Nhận Đặt Hàng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL HIỂN THỊ MÃ QR THANH TOÁN -->
+  <div class="modal" id="qr-payment-modal">
+    <div class="modal-content" style="text-align: center;">
+      <h3 data-i18n="qrModalTitle">📱 Quét Mã QR Thanh Toán</h3>
+      <p style="font-size: 0.85rem; color: #666; margin: 10px 0;" data-i18n="qrModalDesc">Vui lòng dùng ứng dụng ngân hàng quét mã dưới đây để thanh toán:</p>
+      <div style="font-size: 1.1rem; font-weight: bold; color: #e63946; margin-bottom: 10px;" id="qr-modal-amount">0đ</div>
+      <div style="background: #fff; padding: 10px; display: inline-block; border: 1px solid #ddd; border-radius: 8px;">
+        <img id="qr-code-img" src="" alt="Mã QR Thanh Toán" style="width: 220px; height: 220px; object-fit: contain;">
+      </div>
+      <p style="font-size: 0.75rem; color: #888; margin-top: 10px;" id="qr-bank-info">Ngân hàng: TPBank - STK: 10001684603</p>
+      <div style="margin-top: 15px;">
+        <button onclick="completeQRPaymentOrder()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:6px; font-weight:bold; cursor:pointer; width:100%;" data-i18n="qrCompleteBtn">Đã chuyển khoản xong / Hoàn tất</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL GỌI THÊM MÓN CHO BÀN ĐANG PHỤC VỤ -->
+  <div class="modal" id="add-more-modal">
+    <div class="modal-content" style="max-width: 500px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 id="add-more-title" data-i18n="addMoreTitle">➕ Gọi Thêm Đồ Cho Bàn</h3>
+        <button onclick="closeAddMoreModal()" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">✖</button>
+      </div>
+      <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;" data-i18n="addMoreDesc">Chọn món ăn/đồ uống cần gọi thêm cho khách:</p>
+      
+      <div style="max-height: 250px; overflow-y: auto; border: 1px solid #eee; padding: 8px; border-radius: 6px; margin-bottom: 15px;" id="add-more-products-list"></div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button onclick="closeAddMoreModal()" style="padding:8px 12px; border:none; border-radius:5px; cursor:pointer;" data-i18n="cancelBtn">Hủy</button>
+        <button onclick="submitAddMoreItems()" style="padding:8px 18px; border:none; border-radius:5px; background:#27ae60; color:white; font-weight:bold; cursor:pointer;" data-i18n="addMoreConfirmBtn">Xác Nhận Gọi Thêm</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- BỘ TỪ VỰNG ĐA NGÔN NGỮ (VI / EN) ---
+    const i18n = {
+      vi: {
+        appTitle: "🍿 Tiệm Ăn Vặt Online",
+        modeCustomer: "Khách Hàng",
+        modeStaff: "Nhân Viên 🛒",
+        modeAdmin: "Chủ Tiệm 🔒",
+        logout: "Thoát 🚪",
+        mainMenuTitle: "Menu Ăn vặt & Trà sữa",
+        addressLabel: "Địa chỉ:",
+        mobileLabel: "Mobile:",
+        filterAll: "Tất cả",
+        filterCoffee: "Cà phê & Đồ nóng",
+        filterTea: "Các loại Trà",
+        filterSmoothie: "Sinh tố & Sữa lắc",
+        filterOther: "Nước ép & Đồ khác",
+        filterTobacco: "Thuốc lá & Đồ ăn vặt",
+        cartTitle: "Giỏ hàng",
+        itemsCount: "món",
+        totalLabel: "Tổng",
+        viewCartBtn: "Xem Giỏ Hàng",
+        addBtnText: "+ Thêm món",
+        staffRevToday: "💰 Thống Kê Doanh Thu Hôm Nay",
+        collapse: "Thu gọn ✖",
+        expand: "Hiện 🔍",
+        staffRevNote: "Doanh thu chỉ được ghi nhận khi đơn tại quầy <strong>Đã thanh toán</strong> (hoặc đơn online <strong>Giao thành công</strong>).",
+        statCash: "💵 Tiền Mặt (Tại Quầy)",
+        statTransfer: "📱 Chuyển Khoản (QR Quầy)",
+        statOnline: "🛵 Doanh Thu Online",
+        statTotalToday: "📊 Tổng Doanh Thu (Hôm Nay)",
+        staffOrderListTitle: "📋 Danh Sách Đơn Hàng & Trạng Thái Tại Quầy",
+        staffOrderNote: "Nhân viên có thể bấm <strong>\"Gọi thêm món\"</strong> cho khách tại bàn chưa thanh toán, hoặc xác nhận thanh toán tiền mặt / QR.",
+        adminRevProfit: "📊 Thống Kê Doanh Thu & Lợi Nhuận",
+        adminRevNote: "Chỉ tính toán doanh thu khi đơn tại quầy <strong>Đã thanh toán</strong> hoặc đơn online <strong>Giao thành công</strong>.",
+        topProductsTitle: "🏆 Top 5 Sản Phẩm Doanh Thu & Lợi Nhuận Cao Nhất",
+        topProductsDesc: "Thống kê xu hướng thị hiếu khách hàng dựa trên các đơn hàng thành công.",
+        colProduct: "Sản phẩm",
+        colSoldQty: "Đã bán",
+        colRevenue: "Doanh thu",
+        colProfit: "Lợi nhuận",
+        noDataYet: "Chưa có dữ liệu",
+        chartTitleLabel: "📈 Biểu Đồ Xu Hướng Doanh Thu & Lợi Nhuận",
+        adminLoyaltyConfigTitle: "⚙️ Cài Đặt Chương Trình Tích Điểm & Tri Ân",
+        adminLoyaltyConfigNote: "Tùy biến giá trị tiền quy đổi cho mỗi điểm tích lũy của khách hàng khi đổi quà/giảm giá.",
+        pointValueLabel: "Giá trị quy đổi (1 điểm = ? VNĐ):",
+        saveConfigBtn: "Lưu Cài Đặt",
+        adminLoyaltyTitle: "👑 Quản Lý Khách Hàng Thân Thiết & Điểm Tích Lũy",
+        adminLoyaltyNote: "Theo dõi điểm số, hạng hội viên và điều chỉnh điểm tích lũy của khách hàng.",
+        viewBy: "Xem theo:",
+        optDay: "Theo Ngày",
+        optMonth: "Theo Tháng",
+        optYear: "Theo Năm",
+        revSuccess: "Doanh Thu Thành Công",
+        totalCost: "Tổng Vốn (Giá Vốn Bán Ra)",
+        realProfit: "Lợi Nhuận Thực Tế",
+        materialTotalCost: "Tổng Chi Phí Nguyên Liệu Kho",
+        adminMaterialTitle: "📦 Quản Lý Nguyên Vật Liệu Đầu Vào",
+        adminMaterialNote: "Thêm và theo dõi các khoản chi phí nhập nguyên vật liệu, dụng cụ của quán.",
+        addMaterialHeader: "➕ Nhập Nguyên Vật Liệu Mới",
+        matNameLabel: "Tên nguyên liệu:",
+        matUnitLabel: "Đơn vị tính:",
+        matPriceLabel: "Giá nhập (VNĐ):",
+        btnAdd: "Thêm",
+        adminOrderListTitle: "📋 Danh Sách Đơn Hàng & Trạng Thái",
+        adminOrderNote: "Quản lý toàn bộ trạng thái đơn hàng (Đơn tại quầy đã thanh toán sẽ bị khóa cố định).",
+        adminAddProductTitle: "➕ Thêm Món Mới Vào Menu Bán Hàng",
+        prodNameLabel: "Tên món (Tiếng Việt):",
+        prodNameEnLabel: "Tên món (Tiếng Anh - English Name):",
+        prodCategoryLabel: "Loại món:",
+        prodPriceLabel: "Giá bán (VNĐ):",
+        prodCostLabel: "Chi phí đầu vào / Giá vốn tính sản phẩm (VNĐ):",
+        prodDescLabel: "Mô tả ngắn (Tiếng Việt):",
+        prodDescEnLabel: "Mô tả ngắn (Tiếng Anh - English Desc):",
+        prodImgLabel: "Chọn hình ảnh từ máy tính:",
+        noImg: "Chưa có ảnh",
+        saveNewProdBtn: "Lưu Món Mới",
+        adminManageMenuTitle: "✏️ Quản Lý Món, Cập Nhật Giá Bán, Giá Vốn & Đổi Mật Khẩu",
+        adminManageMenuNote: "Chỉnh sửa trực tiếp giá bán, chi phí đầu vào hoặc xóa món tại đây.",
+        changeAdminPassLabel: "🔒 Đổi mật khẩu Chủ Tiệm:",
+        changeStaffPassLabel: "🔒 Đổi mật khẩu Nhân Viên Bán Quầy:",
+        changePassBtn: "Đổi Mật Khẩu",
+        loginModalTitle: "🔑 Xác Nhận Đăng Nhập",
+        loginModalDesc: "Vui lòng nhập mật khẩu để tiếp tục.",
+        loginErr: "Mật khẩu không chính xác!",
+        cancelBtn: "Hủy",
+        loginBtn: "Đăng Nhập",
+        cartModalTitle: "🛒 Giỏ Hàng Của Bạn",
+        totalAmount: "Tổng tiền:",
+        orderTypeLabel: "Hình thức mua hàng:",
+        optOnline: "🛵 Giao hàng tận nơi (Online / Zalo)",
+        optOnsite: "🏪 Ăn tại quán / Mua trực tiếp tại quầy",
+        paymentMethodLabel: "Trạng thái thanh toán ban đầu:",
+        optCod: "💵 Thanh toán khi nhận hàng (COD / Gửi Zalo)",
+        optQr: "📱 Quét mã QR Chuyển khoản ngân hàng",
+        clearCartBtn: "Xóa sạch",
+        checkoutBtn: "Tiến hành đặt hàng",
+        checkoutModalTitle: "📍 Thông Tin Giao Hàng Online",
+        labelName: "Họ và tên:",
+        labelPhone: "Số điện thoại (Dùng tích điểm):",
+        checkPointsBtn: "Tra điểm",
+        availablePoints: "Điểm hiện có:",
+        pointsUnit: "điểm",
+        subtotalLabel: "Tạm tính:",
+        discountLabel: "Giảm giá điểm:",
+        finalTotalLabel: "Thành tiền:",
+        labelAddress: "Địa chỉ giao hàng:",
+        confirmOrderBtn: "Xác Nhận Đặt Hàng",
+        qrModalTitle: "📱 Quét Mã QR Thanh Toán",
+        qrModalDesc: "Vui lòng dùng ứng dụng ngân hàng quét mã dưới đây để thanh toán:",
+        qrCompleteBtn: "Đã chuyển khoản xong / Hoàn tất",
+        addMoreTitle: "➕ Gọi Thêm Đồ Cho Bàn",
+        addMoreDesc: "Chọn món ăn/đồ uống cần gọi thêm cho khách:",
+        addMoreConfirmBtn: "Xác Nhận Gọi Thêm",
+        callBtn: "📞 Gọi",
+        deleteBtn: "Xóa",
+        editPriceBtn: "Cập nhật giá",
+        editCostBtn: "Cập nhật vốn",
+        updateBtn: "Cập nhật",
+        statusUnpaid: "Chưa thanh toán",
+        statusPaid: "Đã thanh toán",
+        statusNew: "Chờ xác nhận",
+        statusShipping: "Đang giao hàng",
+        statusSuccess: "Giao thành công",
+        alertCartEmpty: "Giỏ hàng đang trống!",
+        alertFillInfo: "Vui lòng điền đầy đủ thông tin yêu cầu!",
+        alertOrderSuccess: "Đơn hàng của bạn đã được ghi nhận và chuyển hướng tới Zalo!",
+        alertPaidSuccess: "Thanh toán thành công!",
+        alertDeleteOrder: "Bạn có chắc muốn xóa đơn hàng này?"
+      },
+      en: {
+        appTitle: "🍿 Online Snack Shop",
+        modeCustomer: "Customer",
+        modeStaff: "Staff 🛒",
+        modeAdmin: "Owner 🔒",
+        logout: "Logout 🚪",
+        mainMenuTitle: "Snacks & Milk Tea Menu",
+        addressLabel: "Address:",
+        mobileLabel: "Mobile:",
+        filterAll: "All",
+        filterCoffee: "Coffee & Hot Drinks",
+        filterTea: "Tea Varieties",
+        filterSmoothie: "Smoothies & Milkshakes",
+        filterOther: "Juices & Others",
+        filterTobacco: "Tobacco & Snacks",
+        cartTitle: "Cart",
+        itemsCount: "items",
+        totalLabel: "Total",
+        viewCartBtn: "View Cart",
+        addBtnText: "+ Add Item",
+        staffRevToday: "💰 Today's Revenue Statistics",
+        collapse: "Collapse ✖",
+        expand: "Expand 🔍",
+        staffRevNote: "Revenue is recorded only when onsite orders are <strong>Paid</strong> (or online orders are <strong>Successfully Delivered</strong>).",
+        statCash: "💵 Cash (Onsite)",
+        statTransfer: "📱 Bank Transfer (QR)",
+        statOnline: "🛵 Online Revenue",
+        statTotalToday: "📊 Total Revenue (Today)",
+        staffOrderListTitle: "📋 Onsite Orders & Status List",
+        staffOrderNote: "Staff can click <strong>\"Add Item\"</strong> for unpaid tables, or confirm cash / QR payments.",
+        adminRevProfit: "📊 Revenue & Profit Statistics",
+        adminRevNote: "Revenue is calculated only for paid onsite orders or successfully delivered online orders.",
+        topProductsTitle: "🏆 Top 5 Best-Selling Products by Revenue & Profit",
+        topProductsDesc: "Consumer taste statistics based on successful orders.",
+        colProduct: "Product",
+        colSoldQty: "Sold Qty",
+        colRevenue: "Revenue",
+        colProfit: "Profit",
+        noDataYet: "No data available",
+        chartTitleLabel: "📈 Revenue & Net Profit Trend Chart",
+        adminLoyaltyConfigTitle: "⚙️ Loyalty Points & Rewards Configuration",
+        adminLoyaltyConfigNote: "Customize the monetary value for each loyalty point when customers redeem or get discounts.",
+        pointValueLabel: "Redemption Rate (1 point = ? VND):",
+        saveConfigBtn: "Save Settings",
+        adminLoyaltyTitle: "👑 Customer Loyalty Program & Points",
+        adminLoyaltyNote: "Track customer points, membership tiers and adjust accumulated points.",
+        viewBy: "View by:",
+        optDay: "By Day",
+        optMonth: "By Month",
+        optYear: "By Year",
+        revSuccess: "Successful Revenue",
+        totalCost: "Total Cost (COGS)",
+        realProfit: "Net Profit",
+        materialTotalCost: "Total Material Cost",
+        adminMaterialTitle: "📦 Raw Material Management",
+        adminMaterialNote: "Add and track costs for importing raw materials and shop tools.",
+        addMaterialHeader: "➕ Add New Material",
+        matNameLabel: "Material Name:",
+        matUnitLabel: "Unit:",
+        matPriceLabel: "Import Price (VND):",
+        btnAdd: "Add",
+        adminOrderListTitle: "📋 Order List & Status",
+        adminOrderNote: "Manage all order statuses (Paid onsite orders are permanently locked).",
+        adminAddProductTitle: "➕ Add New Menu Item",
+        prodNameLabel: "Item Name (Vietnamese):",
+        prodNameEnLabel: "Item Name (English):",
+        prodCategoryLabel: "Category:",
+        prodPriceLabel: "Selling Price (VND):",
+        prodCostLabel: "Cost Price / COGS (VND):",
+        prodDescLabel: "Short Description (Vietnamese):",
+        prodDescEnLabel: "Short Description (English):",
+        prodImgLabel: "Choose Image from PC:",
+        noImg: "No image",
+        saveNewProdBtn: "Save New Item",
+        adminManageMenuTitle: "✏️ Manage Items, Update Prices, COGS & Change Passwords",
+        adminManageMenuNote: "Directly edit selling price, cost price, or delete items here.",
+        changeAdminPassLabel: "🔒 Change Owner Password:",
+        changeStaffPassLabel: "🔒 Change Staff Password:",
+        changePassBtn: "Change Password",
+        loginModalTitle: "🔑 Login Confirmation",
+        loginModalDesc: "Please enter your password to continue.",
+        loginErr: "Incorrect password!",
+        cancelBtn: "Cancel",
+        loginBtn: "Login",
+        cartModalTitle: "🛒 Your Shopping Cart",
+        totalAmount: "Total Amount:",
+        orderTypeLabel: "Order Type:",
+        optOnline: "🛵 Delivery (Online / Zalo)",
+        optOnsite: "🏪 Dine-in / Direct Counter Order",
+        paymentMethodLabel: "Initial Payment Status:",
+        optCod: "💵 Cash on Delivery (COD / Zalo)",
+        optQr: "📱 Bank Transfer QR Code",
+        clearCartBtn: "Clear Cart",
+        checkoutBtn: "Proceed to Checkout",
+        checkoutModalTitle: "📍 Online Delivery Information",
+        labelName: "Full Name:",
+        labelPhone: "Phone Number (For Loyalty Points):",
+        checkPointsBtn: "Check Points",
+        availablePoints: "Available Points:",
+        pointsUnit: "pts",
+        subtotalLabel: "Subtotal:",
+        discountLabel: "Points Discount:",
+        finalTotalLabel: "Final Amount:",
+        labelAddress: "Delivery Address:",
+        confirmOrderBtn: "Confirm Order",
+        qrModalTitle: "📱 Scan QR Code to Pay",
+        qrModalDesc: "Please use your banking app to scan the QR code below to pay:",
+        qrCompleteBtn: "Transfer Completed / Finish",
+        addMoreTitle: "➕ Add Items to Table",
+        addMoreDesc: "Select items to add for the customer:",
+        addMoreConfirmBtn: "Confirm Add Items",
+        callBtn: "📞 Call",
+        deleteBtn: "Delete",
+        editPriceBtn: "Update Price",
+        editCostBtn: "Update Cost",
+        updateBtn: "Update",
+        statusUnpaid: "Unpaid",
+        statusPaid: "Paid",
+        statusNew: "Pending",
+        statusShipping: "Shipping",
+        statusSuccess: "Success",
+        alertCartEmpty: "Your cart is empty!",
+        alertFillInfo: "Please fill in all required fields!",
+        alertOrderSuccess: "Your order has been recorded and redirected to Zalo!",
+        alertPaidSuccess: "Payment successful!",
+        alertDeleteOrder: "Are you sure you want to delete this order?"
+      }
+    };
+
+    let currentLang = localStorage.getItem('app_lang') || 'vi';
+    let revenueChartInstance = null;
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      localStorage.setItem('app_lang', lang);
+      document.getElementById('lang-switcher').value = lang;
+      
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (i18n[currentLang][key]) {
+          el.innerHTML = i18n[currentLang][key];
+        }
+      });
+
+      renderMenu(products);
+      if (document.getElementById('staff-view').classList.contains('active')) {
+        renderStaffOrders();
+      }
+      if (document.getElementById('admin-view').classList.contains('active')) {
+        renderAdminOrders();
+        renderAdminMenuList();
+        renderAdminMaterialList();
+        renderAdminCustomers();
+        calculateTaxObligation();
+        document.getElementById('admin-point-value-input').value = loyaltyPointValue;
+      }
+    }
+
+    function changeLanguage(lang) {
+      setLanguage(lang);
+    }
+
+    // --- CẤU HÌNH HỆ THỐNG ---
+    const BANK_CONFIG = {
+      BANK_ID: "TPBank",
+      ACCOUNT_NO: "10001684603",
+      ACCOUNT_NAME: "BEE COFFEE"
+    };
+
+    const ZALO_PHONE = "0978914096";
+
+    // DANH SÁCH 59 MÓN ĐÃ SẮP XẾP CHUẨN XÁC VÀO TỪNG NHÓM
+    const defaultProducts = [
+      // --- NHÓM 1: Cà phê & Đồ nóng (ca-phe) ---
+      { id: 1, name: "Cà phê sữa", nameEn: "Milk Coffee", category: "ca-phe", price: 25000, cost: 9000, desc: "Thơm của cafe, ngậy của sữa", descEn: "Aromatic coffee with creamy milk", img: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=300" },
+      { id: 2, name: "Cà phê muối", nameEn: "Salted Coffee", category: "ca-phe", price: 30000, cost: 11000, desc: "Đắng của cafe, thơm sữa, đậm vị kem muối", descEn: "Rich coffee with salted cream foam", img: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=300" },
+      { id: 3, name: "Bạc xỉu", nameEn: "Bac Xiu", category: "ca-phe", price: 30000, cost: 10000, desc: "Đắng nhẹ của cafe, ngọt của sữa. Gu nhẹ!", descEn: "Mild coffee with sweet condensed milk", img: "https://images.unsplash.com/photo-1577968897966-3d4325b36b61?w=300" },
+      { id: 4, name: "Cacao kem muối", nameEn: "Salted Cream Cacao", category: "ca-phe", price: 30000, cost: 11000, desc: "Vị đắng cacao, pha với sự ngọt ngào của sữa", descEn: "Rich cacao with sweet milk and salt cream", img: "https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?w=300" },
+      { id: 5, name: "Trà sâm", nameEn: "Ginseng Tea", category: "ca-phe", price: 15000, cost: 5000, desc: "Vị ngọt thanh của Rong biển, hương thơm lá nếp", descEn: "Sweet seaweed ginseng tea with pandan aroma", img: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=300" },
+      { id: 6, name: "Cafe đen", nameEn: "Black Coffee", category: "ca-phe", price: 25000, cost: 8000, desc: "Cafe đen truyền thống đậm đà", descEn: "Traditional strong black coffee", img: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=300" },
+      { id: 7, name: "Trà cúc nóng", nameEn: "Hot Chrysanthemum Tea", category: "ca-phe", price: 25000, cost: 9000, desc: "Trà cúc thanh nhiệt ấm áp", descEn: "Warming herbal chrysanthemum tea", img: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=300" },
+      { id: 8, name: "Hồng trà cam quế", nameEn: "Cinnamon Orange Black Tea", category: "ca-phe", price: 30000, cost: 11000, desc: "Hồng trà thơm ấm vị quế cam", descEn: "Black tea infused with orange and cinnamon", img: "https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=300" },
+      { id: 9, name: "Ấm trà nóng", nameEn: "Hot Tea Pot", category: "ca-phe", price: 15000, cost: 5000, desc: "Trà ấm truyền thống", descEn: "Traditional hot tea pot", img: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=300" },
+      { id: 10, name: "Cà phê sữa dừa", nameEn: "Coconut Milk Coffee", category: "ca-phe", price: 35000, cost: 13000, desc: "Cà phê kết hợp cốt dừa béo ngậy", descEn: "Coffee with rich coconut milk", img: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=300" },
+      { id: 11, name: "Cacao latte", nameEn: "Cacao Latte", category: "ca-phe", price: 30000, cost: 11000, desc: "Cacao sữa tươi thơm mịn", descEn: "Smooth cacao with fresh milk", img: "https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?w=300" },
+      { id: 12, name: "Matcha latte", nameEn: "Matcha Latte", category: "ca-phe", price: 30000, cost: 11000, desc: "Matcha Nhật Bản kết hợp sữa tươi", descEn: "Japanese matcha with fresh milk", img: "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=300" },
+      
+      // --- NHÓM 2: Các loại Trà (tra) ---
+      { id: 13, name: "Trà tắc", nameEn: "Kumquat Tea", category: "tra", price: 15000, cost: 5000, desc: "Trà tắc thanh mát giải nhiệt", descEn: "Refreshing kumquat iced tea", img: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300" },
+      { id: 14, name: "Trà chanh", nameEn: "Lemon Tea", category: "tra", price: 15000, cost: 5000, desc: "Trà chanh truyền thống", descEn: "Classic iced lemon tea", img: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=300" },
+      { id: 15, name: "Trà đào", nameEn: "Peach Tea", category: "tra", price: 20000, cost: 7000, desc: "Trà kèm đào miếng thơm ngọt", descEn: "Sweet iced tea with peach slices", img: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=300" },
+      { id: 16, name: "Trà dưa lưới", nameEn: "Honeydew Melon Tea", category: "tra", price: 20000, cost: 7000, desc: "Trà hương dưa lưới mát lạnh", descEn: "Cool honeydew melon flavored tea", img: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300" },
+      { id: 17, name: "Trà chanh leo", nameEn: "Passion Fruit Tea", category: "tra", price: 25000, cost: 9000, desc: "Trà chanh leo chua ngọt tự nhiên", descEn: "Sweet and sour passion fruit tea", img: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300" },
+      { id: 18, name: "Trà tắc xí muội", nameEn: "Salted Plum Kumquat Tea", category: "tra", price: 25000, cost: 9000, desc: "Trà tắc kết hợp xí muội đậm đà", descEn: "Kumquat tea with salted preserved plum", img: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300" },
+      { id: 19, name: "Trà Atisô xoài mật ong", nameEn: "Artichoke Honey Mango Tea", category: "tra", price: 35000, cost: 13000, desc: "Thanh mát vị atisô xoài mật ong", descEn: "Artichoke tea with mango and honey", img: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=300" },
+      { id: 20, name: "Trà Atisô cam xoài", nameEn: "Artichoke Orange Mango Tea", category: "tra", price: 35000, cost: 13000, desc: "Sự kết hợp atisô cam và xoài", descEn: "Artichoke tea with orange and mango", img: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=300" },
+      { id: 21, name: "Trà đào cam sả", nameEn: "Peach Orange Lemongrass Tea", category: "tra", price: 30000, cost: 11000, desc: "Thanh mát giải nhiệt, kèm đào miếng và sả", descEn: "Peach tea with orange and lemongrass", img: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=300" },
+      { id: 22, name: "Trà sữa Ô Long lài", nameEn: "Jasmine Oolong Milk Tea", category: "tra", price: 35000, cost: 13000, desc: "Ô long lài thơm đậm vị sữa", descEn: "Jasmine oolong tea with rich milk", img: "https://images.unsplash.com/photo-1558857563-b371033873b8?w=300" },
+      { id: 23, name: "Trà Ổi Hồng", nameEn: "Pink Guava Tea", category: "tra", price: 25000, cost: 9000, desc: "Trà ổi hồng thơm ngọt tự nhiên", descEn: "Refreshing pink guava flavored tea", img: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300" },
+      { id: 24, name: "Trà xanh O độ", nameEn: "Green Tea Zero Degree", category: "tra", price: 15000, cost: 6000, desc: "Trà xanh đóng chai giải khát", descEn: "Bottled green tea", img: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=300" },
+
+      // --- NHÓM 3: Sinh tố & Sữa lắc (sinh-to-sua) ---
+      { id: 25, name: "Sinh tố bơ xoài", nameEn: "Avocado Mango Smoothie", category: "sinh-to-sua", price: 40000, cost: 15000, desc: "Bơ béo ngậy kết hợp xoài ngọt lịm", descEn: "Creamy avocado blended with sweet mango", img: "https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=300" },
+      { id: 26, name: "Sinh tố bơ cafe", nameEn: "Avocado Coffee Smoothie", category: "sinh-to-sua", price: 40000, cost: 15000, desc: "Sinh tố bơ thơm hòa quyện vị cafe", descEn: "Avocado smoothie mixed with coffee flavor", img: "https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=300" },
+      { id: 27, name: "Sinh tố xoài", nameEn: "Mango Smoothie", category: "sinh-to-sua", price: 40000, cost: 15000, desc: "Sinh tố xoài tươi mát", descEn: "Fresh sweet mango smoothie", img: "https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=300" },
+      { id: 28, name: "Sinh tố bơ", nameEn: "Avocado Smoothie", category: "sinh-to-sua", price: 40000, cost: 15000, desc: "Sinh tố bơ nguyên chất dẻo mịn", descEn: "Rich and creamy pure avocado smoothie", img: "https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=300" },
+      { id: 29, name: "Sữa chua lắc", nameEn: "Shaken Yogurt", category: "sinh-to-sua", price: 35000, cost: 13000, desc: "Sữa chua lắc trái cây tươi mát", descEn: "Shaken yogurt with fruit flavors", img: "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=300" },
+      { id: 30, name: "Sữa chua lắc mix vị", nameEn: "Mixed Shaken Yogurt", category: "sinh-to-sua", price: 40000, cost: 15000, desc: "Sữa chua lắc mix nhiều vị trái cây", descEn: "Shaken yogurt mixed with multiple fruits", img: "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=300" },
+      { id: 31, name: "Sữa chua hoa quả", nameEn: "Fruit Yogurt", category: "sinh-to-sua", price: 40000, cost: 15000, desc: "Sữa chua tươi ăn kèm hoa quả cắt miếng", descEn: "Fresh yogurt served with diced fruits", img: "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=300" },
+      { id: 32, name: "Bơ sữa dừa", nameEn: "Coconut Milk Avocado", category: "sinh-to-sua", price: 45000, cost: 17000, desc: "Bơ tươi kết hợp cốt dừa đặc biệt", descEn: "Avocado blended with rich coconut milk", img: "https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=300" },
+      { id: 33, name: "Sữa lắc việt quất", nameEn: "Blueberry Milkshake", category: "sinh-to-sua", price: 30000, cost: 11000, desc: "Sữa lắc việt quất chua ngọt thơm", descEn: "Sweet and tangy blueberry milkshake", img: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=300" },
+      { id: 34, name: "Sữa lắc đào", nameEn: "Peach Milkshake", category: "sinh-to-sua", price: 30000, cost: 11000, desc: "Sữa lắc hương đào thơm mát", descEn: "Refreshing peach milkshake", img: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=300" },
+      { id: 35, name: "Sữa lắc dưa lưới", nameEn: "Honeydew Milkshake", category: "sinh-to-sua", price: 30000, cost: 11000, desc: "Sữa lắc dưa lưới béo ngậy", descEn: "Creamy honeydew melon milkshake", img: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=300" },
+      { id: 36, name: "Sữa lắc dâu", nameEn: "Strawberry Milkshake", category: "sinh-to-sua", price: 30000, cost: 11000, desc: "Sữa lắc dâu tây ngọt ngào", descEn: "Sweet strawberry milkshake", img: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=300" },
+      { id: 37, name: "Sữa lắc chanh leo", nameEn: "Passion Fruit Milkshake", category: "sinh-to-sua", price: 30000, cost: 11000, desc: "Sữa lắc chanh leo thơm dịu", descEn: "Passion fruit milkshake", img: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=300" },
+      { id: 38, name: "Sữa tươi trân châu đường đen", nameEn: "Brown Sugar Fresh Milk", category: "sinh-to-sua", price: 35000, cost: 13000, desc: "Sữa tươi thơm ngậy cùng trân châu đường đen", descEn: "Fresh milk with brown sugar pearls", img: "https://images.unsplash.com/photo-1541658016709-82535e94bc69?w=300" },
+      { id: 39, name: "Sữa chua cốm", nameEn: "Green Rice Yogurt", category: "sinh-to-sua", price: 40000, cost: 15000, desc: "Sữa chua kết hợp cốm thơm mát", descEn: "Yogurt with young green sticky rice", img: "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=300" },
+      { id: 40, name: "Matcha cold whisk cốm", nameEn: "Matcha Cold Whisk with Cốm", category: "sinh-to-sua", price: 50000, cost: 19000, desc: "Matcha đánh lạnh đặc biệt kết hợp cốm", descEn: "Cold whisk matcha topped with green rice", img: "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=300" },
+
+      // --- NHÓM 4: Nước ép & Đồ khác (nuoc-khac) ---
+      { id: 41, name: "Nước cam", nameEn: "Orange Juice", category: "nuoc-khac", price: 30000, cost: 11000, desc: "Nước cam tươi nguyên chất giàu vitamin C", descEn: "Fresh squeezed orange juice", img: "https://images.unsplash.com/photo-1613478223719-2ab802602423?w=300" },
+      { id: 42, name: "Nước dưa hấu", nameEn: "Watermelon Juice", category: "nuoc-khac", price: 30000, cost: 11000, desc: "Nước ép dưa hấu giải khát mát lạnh", descEn: "Refreshing watermelon juice", img: "https://images.unsplash.com/photo-1589734346142-329486c99c4c?w=300" },
+      { id: 43, name: "Nước dừa", nameEn: "Coconut Water", category: "nuoc-khac", price: 30000, cost: 11000, desc: "Nước dừa tươi ngọt tự nhiên", descEn: "Fresh natural coconut water", img: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=300" },
+      { id: 44, name: "Sấu khoáng", nameEn: "Dracontomelon Mineral Drink", category: "nuoc-khac", price: 25000, cost: 9000, desc: "Nước sấu chua ngọt kết hợp nước khoáng", descEn: "Dracontomelon juice with mineral water", img: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=300" },
+      { id: 45, name: "Nước dâu tằm", nameEn: "Mulberry Juice", category: "nuoc-khac", price: 30000, cost: 11000, desc: "Nước dâu tằm ngọt dịu thanh mát", descEn: "Sweet mulberry juice", img: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=300" },
+      { id: 46, name: "Táo xanh - Xí muội", nameEn: "Green Apple Salted Plum", category: "nuoc-khac", price: 30000, cost: 11000, desc: "Táo xanh kết hợp vị xí muội đậm đà", descEn: "Green apple juice with salted plum", img: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300" },
+      { id: 47, name: "Mận xí muội", nameEn: "Plum Salted Plum Drink", category: "nuoc-khac", price: 30000, cost: 11000, desc: "Nước mận chua ngọt kèm xí muội", descEn: "Plum juice with salted plum", img: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300" },
+      { id: 48, name: "Chai nước lọc", nameEn: "Bottled Water", category: "nuoc-khac", price: 10000, cost: 4000, desc: "Nước suối đóng chai tinh khiết", descEn: "Pure bottled water", img: "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=300" },
+      { id: 49, name: "Bò húc", nameEn: "Red Bull Energy Drink", category: "nuoc-khac", price: 20000, cost: 12000, desc: "Nước tăng lực Red Bull", descEn: "Red Bull energy drink", img: "https://images.unsplash.com/photo-1622543925917-763c34d1a86e?w=300" },
+      { id: 50, name: "Chai nước ngọt các loại", nameEn: "Assorted Soft Drinks", category: "nuoc-khac", price: 15000, cost: 7000, desc: "Nước ngọt có ga đóng chai đa dạng", descEn: "Various bottled soft drinks", img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=300" },
+      { id: 51, name: "Trà Đá", nameEn: "Iced Tea", category: "nuoc-khac", price: 5000, cost: 1000, desc: "Trà đá giải khát truyền thống", descEn: "Traditional iced tea", img: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300" },
+      { id: 52, name: "Nước Khoáng Chanh", nameEn: "Lemon Mineral Water", category: "nuoc-khac", price: 20000, cost: 7000, desc: "Nước khoáng tươi vắt chanh", descEn: "Mineral water with fresh lemon", img: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=300" },
+
+      // --- NHÓM 5: Thuốc lá & Đồ ăn vặt (thuoc-la) ---
+      { id: 53, name: "Thuốc lá Thăng long mềm", nameEn: "Thang Long Soft Cigarettes", category: "thuoc-la", price: 20000, cost: 16000, desc: "Thuốc lá Thăng Long bao mềm truyền thống", descEn: "Traditional Thang Long soft pack cigarettes", img: "https://images.unsplash.com/photo-1527061011665-3652c757a4d4?w=300" },
+      { id: 54, name: "Thăng long cứng", nameEn: "Thang Long Hard Cigarettes", category: "thuoc-la", price: 20000, cost: 16000, desc: "Thuốc lá Thăng Long bao cứng", descEn: "Thang Long hard pack cigarettes", img: "https://images.unsplash.com/photo-1527061011665-3652c757a4d4?w=300" },
+      { id: 55, name: "Thăng long dẹt", nameEn: "Thang Long Slim Cigarettes", category: "thuoc-la", price: 20000, cost: 16000, desc: "Thuốc lá Thăng Long hộp dẹt", descEn: "Thang Long slim cigarettes", img: "https://images.unsplash.com/photo-1527061011665-3652c757a4d4?w=300" },
+      { id: 56, name: "Thăng long đỏ", nameEn: "Thang Long Red Cigarettes", category: "thuoc-la", price: 30000, cost: 24000, desc: "Thuốc lá Thăng Long đỏ đậm", descEn: "Thang Long red cigarettes", img: "https://images.unsplash.com/photo-1527061011665-3652c757a4d4?w=300" },
+      { id: 57, name: "Sài gòn Bạc Hà", nameEn: "Saigon Mint Cigarettes", category: "thuoc-la", price: 20000, cost: 16000, desc: "Thuốc lá Sài Gòn hương bạc hà the mát", descEn: "Saigon mint flavored cigarettes", img: "https://images.unsplash.com/photo-1527061011665-3652c757a4d4?w=300" },
+      { id: 58, name: "Sài gòn dưa lưới", nameEn: "Saigon Melon Cigarettes", category: "thuoc-la", price: 25000, cost: 20000, desc: "Thuốc lá Sài Gòn hương dưa lưới", descEn: "Saigon melon flavored cigarettes", img: "https://images.unsplash.com/photo-1527061011665-3652c757a4d4?w=300" },
+      { id: 59, name: "Hạt Hướng Dương", nameEn: "Sunflower Seeds", category: "thuoc-la", price: 10000, cost: 4000, desc: "Hạt hướng dương rang giòn ăn vặt", descEn: "Roasted sunflower seeds snack", img: "https://images.unsplash.com/photo-1563227812-0ea4c22e6cc8?w=300" }
+    ];
+
+    const defaultMaterials = [
+      { id: 101, name: "Cà phê hạt nguyên chất", unit: "Kg", price: 180000 },
+      { id: 102, name: "Sữa đặc có đường", unit: "Thùng", price: 750000 },
+      { id: 103, name: "Trà các loại", unit: "Kg", price: 120000 }
+    ];
+
+    let rawProducts = localStorage.getItem('app_products');
+    let products = rawProducts ? JSON.parse(rawProducts) : defaultProducts;
+    if (!Array.isArray(products) || products.length === 0) {
+      products = defaultProducts;
+    }
+
+    let materials = JSON.parse(localStorage.getItem('app_materials')) || defaultMaterials;
+    let orders = JSON.parse(localStorage.getItem('app_orders')) || [];
+    let customers = JSON.parse(localStorage.getItem('app_customers')) || {};
+    let loyaltyPointValue = parseInt(localStorage.getItem('app_point_value')) || 1000;
+
+    let adminPass = localStorage.getItem('app_admin_pass') || "123456";
+    let staffPass = localStorage.getItem('app_staff_pass') || "654321";
+    
+    let currentRoleLoggedIn = sessionStorage.getItem('app_current_role') || null;
+    let cart = {};
+    let temporaryImageData = "";
+    let loginTargetMode = "";
+    let selectedOrderType = "online";
+    let selectedPaymentMethod = "cod";
+
+    let activeAddMoreOrderId = null;
+    let addMoreCart = {};
+
+    let currentOrderSubtotal = 0;
+    let currentDiscountAmount = 0;
+
+    function saveProductsToStorage() { localStorage.setItem('app_products', JSON.stringify(products)); }
+    function saveMaterialsToStorage() { localStorage.setItem('app_materials', JSON.stringify(materials)); }
+    function saveOrdersToStorage() { localStorage.setItem('app_orders', JSON.stringify(orders)); }
+    function saveCustomersToStorage() { localStorage.setItem('app_customers', JSON.stringify(customers)); }
+    function savePointValueToStorage() { localStorage.setItem('app_point_value', loyaltyPointValue); }
+
+    function savePointValueConfig() {
+      const inputVal = parseInt(document.getElementById('admin-point-value-input').value);
+      if (isNaN(inputVal) || inputVal <= 0) {
+        return alert(currentLang === 'en' ? "Please enter a valid point redemption value!" : "Vui lòng nhập giá trị quy đổi hợp lệ!");
+      }
+      loyaltyPointValue = inputVal;
+      savePointValueToStorage();
+      alert(currentLang === 'en' ? `Point redemption updated: 1 point = ${loyaltyPointValue.toLocaleString()} VND` : `Đã cập nhật giá trị tích điểm: 1 điểm = ${loyaltyPointValue.toLocaleString()}đ`);
+    }
+
+    function getCustomerTier(totalSpent) {
+      if (totalSpent >= 2000000) return { name: "Diamond", class: "tier-diamond" };
+      if (totalSpent >= 1000000) return { name: "Gold", class: "tier-gold" };
+      if (totalSpent >= 500000) return { name: "Silver", class: "tier-silver" };
+      return { name: "Bronze", class: "tier-bronze" };
+    }
+
+    function rewardCustomerPoints(phone, customerName, orderTotalAmount) {
+      if (!phone || phone === "Khách tại quầy" || phone === "Dine-in Guest") return;
+      
+      if (!customers[phone]) {
+        customers[phone] = {
+          name: customerName || "Khách hàng",
+          phone: phone,
+          points: 0,
+          totalSpent: 0
+        };
+      }
+      if (customerName && customerName !== "Bàn số ..." && customerName !== "Table ...") {
+        customers[phone].name = customerName;
+      }
+
+      customers[phone].totalSpent += orderTotalAmount;
+      const earnedPoints = Math.floor(orderTotalAmount / 10000);
+      customers[phone].points += earnedPoints;
+
+      saveCustomersToStorage();
+    }
+
+    function toggleCard(headerElement) {
+      const card = headerElement.closest('.admin-card');
+      card.classList.toggle('expanded');
+      const icon = headerElement.querySelector('.toggle-icon');
+      if (card.classList.contains('expanded')) {
+        icon.innerText = i18n[currentLang].collapse || "Thu gọn ✖";
+      } else {
+        icon.innerText = i18n[currentLang].expand || "Hiện 🔍";
+      }
+    }
+
+    function getFormattedCurrentTime() {
+      const now = new Date();
+      const d = String(now.getDate()).padStart(2, '0');
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const y = now.getFullYear();
+      const timeStr = now.toLocaleTimeString('vi-VN');
+      return `${d}/${m}/${y}, ${timeStr}`;
+    }
+
+    function updateUIState() {
+      const logoutBtn = document.getElementById('btn-logout');
+      if (currentRoleLoggedIn) { logoutBtn.style.display = 'inline-block'; } 
+      else { logoutBtn.style.display = 'none'; }
+    }
+
+    function switchMode(mode) {
+      if (mode === 'customer') {
+        showCustomerView();
+      } else if (mode === 'staff') {
+        if (currentRoleLoggedIn !== 'staff' && currentRoleLoggedIn !== 'admin') {
+          openLoginModal('staff');
+          return;
+        }
+        showStaffView();
+      } else if (mode === 'admin') {
+        if (currentRoleLoggedIn !== 'admin') {
+          openLoginModal('admin');
+          return;
+        }
+        showAdminView();
+      }
+    }
+
+    function showCustomerView() {
+      document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.mode-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('customer-view').classList.add('active');
+      document.getElementById('btn-customer-mode').classList.add('active');
+      renderMenu(products);
+    }
+
+    function showStaffView() {
+      document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.mode-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('staff-view').classList.add('active');
+      document.getElementById('btn-staff-mode').classList.add('active');
+      
+      calculateStaffRevenue();
+      renderStaffOrders();
+    }
+
+    function showAdminView() {
+      document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.mode-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('admin-view').classList.add('active');
+      document.getElementById('btn-admin-mode').classList.add('active');
+      
+      document.getElementById('admin-point-value-input').value = loyaltyPointValue;
+      toggleRevInputs();
+      renderAdminOrders();
+      renderAdminMenuList();
+      renderAdminMaterialList();
+      renderAdminCustomers();
+      calculateTaxObligation();
+      updateMaterialTotalStat();
+    }
+
+    function openLoginModal(targetMode) {
+      loginTargetMode = targetMode;
+      document.getElementById('pass-input').value = '';
+      document.getElementById('login-err-msg').style.display = 'none';
+
+      if (targetMode === 'staff') {
+        document.getElementById('login-modal-title').innerText = currentLang === 'en' ? '🔑 Staff Login' : '🔑 Đăng Nhập Nhân Viên Bán Quầy';
+        document.getElementById('login-modal-desc').innerText = currentLang === 'en' ? 'Please enter staff password.' : 'Vui lòng nhập mật khẩu nhân viên.';
+        document.getElementById('login-default-hint').innerHTML = currentLang === 'en' ? '(Default password: <b>654321</b>)' : '(Mật khẩu mặc định: <b>654321</b>)';
+      } else {
+        document.getElementById('login-modal-title').innerText = currentLang === 'en' ? '🔑 Owner Login' : '🔑 Xác Nhận Quyền Chủ Tiệm';
+        document.getElementById('login-modal-desc').innerText = currentLang === 'en' ? 'Please enter owner password.' : 'Vui lòng nhập mật khẩu quản trị.';
+        document.getElementById('login-default-hint').innerHTML = currentLang === 'en' ? '(Default password: <b>123456</b>)' : '(Mật khẩu mặc định: <b>123456</b>)';
+      }
+
+      document.getElementById('login-modal').style.display = 'flex';
+      setTimeout(() => document.getElementById('pass-input').focus(), 100);
+    }
+
+    function closeLoginModal() { document.getElementById('login-modal').style.display = 'none'; }
+
+    function confirmLogin() {
+      const inputPass = document.getElementById('pass-input').value;
+      
+      if (loginTargetMode === 'staff') {
+        if (inputPass === staffPass || inputPass === adminPass) {
+          currentRoleLoggedIn = 'staff';
+          sessionStorage.setItem('app_current_role', 'staff');
+          closeLoginModal();
+          updateUIState();
+          showStaffView();
+        } else {
+          document.getElementById('login-err-msg').style.display = 'block';
+        }
+      } else if (loginTargetMode === 'admin') {
+        if (inputPass === adminPass) {
+          currentRoleLoggedIn = 'admin';
+          sessionStorage.setItem('app_current_role', 'admin');
+          closeLoginModal();
+          updateUIState();
+          showAdminView();
+        } else {
+          document.getElementById('login-err-msg').style.display = 'block';
+        }
+      }
+    }
+
+    function logoutSystem() {
+      currentRoleLoggedIn = null;
+      sessionStorage.removeItem('app_current_role');
+      updateUIState();
+      showCustomerView();
+      alert(currentLang === 'en' ? "Logged out successfully!" : "Đã đăng xuất khỏi hệ thống!");
+    }
+
+    function changeAdminPass() {
+      const newPass = document.getElementById('new-admin-pass').value.trim();
+      if (!newPass) return alert(currentLang === 'en' ? "Please enter new password!" : "Vui lòng nhập mật khẩu mới cho Chủ Tiệm!");
+      adminPass = newPass;
+      localStorage.setItem('app_admin_pass', adminPass);
+      document.getElementById('new-admin-pass').value = '';
+      alert(currentLang === 'en' ? "Owner password changed successfully!" : "Đã đổi mật khẩu Chủ Tiệm thành công!");
+    }
+
+    function changeStaffPass() {
+      const newPass = document.getElementById('new-staff-pass').value.trim();
+      if (!newPass) return alert(currentLang === 'en' ? "Please enter new password!" : "Vui lòng nhập mật khẩu mới cho Nhân Viên!");
+      staffPass = newPass;
+      localStorage.setItem('app_staff_pass', staffPass);
+      document.getElementById('new-staff-pass').value = '';
+      alert(currentLang === 'en' ? "Staff password changed successfully!" : "Đã đổi mật khẩu Nhân Viên thành công!");
+    }
+
+    // --- TÍNH TOÁN KÊ KHAI THUẾ THEO CÁC MỨC DOANH THU (MẶC ĐỊNH THỰC TẾ) ---
+    function calculateTaxObligation() {
+      const tierSelect = document.getElementById('tax-tier-select').value;
+      const industrySelect = document.getElementById('tax-industry-select').value;
+
+      // Tính tổng doanh thu thành công thực tế từ hệ thống đơn hàng
+      let systemTotalRev = 0;
+      orders.forEach(o => {
+        let isEligible = false;
+        if (o.customerAddress === "Khách ăn tại quán / Tại quầy" || o.customerAddress === "Dine-in / Direct Counter") {
+          if (o.paymentStatus === 'Đã thanh toán' || o.paymentStatus === 'Paid') isEligible = true;
+        } else {
+          if (o.status === 'Giao thành công' || o.status === 'Success') isEligible = true;
+        }
+        if (isEligible) systemTotalRev += Number(o.total);
+      });
+
+      let baseRevenue = systemTotalRev;
+      let tierNameDesc = "Doanh thu thực tế hệ thống";
+
+      if (tierSelect === 'tier1') { baseRevenue = 800000000; tierNameDesc = "Dưới 1 tỷ đồng (< 1 tỷ)"; }
+      else if (tierSelect === 'tier2') { baseRevenue = 2000000000; tierNameDesc = "Từ 1 tỷ đến 3 tỷ đồng (1 - 3 tỷ)"; }
+      else if (tierSelect === 'tier3') { baseRevenue = 4000000000; tierNameDesc = "Trên 3 tỷ đến 5 tỷ đồng (3 - 5 tỷ)"; }
+      else if (tierSelect === 'tier4') { baseRevenue = 7000000000; tierNameDesc = "Trên 5 tỷ đến 10 tỷ đồng (5 - 10 tỷ)"; }
+      else if (tierSelect === 'tier5') { baseRevenue = 15000000000; tierNameDesc = "Từ 10 tỷ đồng trở lên (>= 10 tỷ)"; }
+
+      let vatRate = (industrySelect === 'retail') ? 0.01 : 0.03; // Bán lẻ 1%, F&B/Dịch vụ 3%
+      let pitRate = (industrySelect === 'retail') ? 0.005 : 0.015; // Bán lẻ TNCN 0.5%, F&B TNCN 1.5%
+
+      let vatTax = 0;
+      let pitTax = 0;
+      let noteText = "";
+
+      if (baseRevenue <= 1000000000) {
+        vatTax = 0;
+        pitTax = 0;
+        noteText = `ℹ️ Trạng thái: Doanh thu đang ở mức <strong>${tierNameDesc}</strong> (<= 1 tỷ): Theo quy định mới, hộ kinh doanh được <strong>miễn thuế GTGT và Thuế TNCN</strong>.`;
+      } else if (baseRevenue <= 3000000000) {
+        vatTax = baseRevenue * vatRate;
+        pitTax = (baseRevenue - 1000000000) * pitRate;
+        noteText = `ℹ️ Trạng thái: Doanh thu đang ở mức <strong>${tierNameDesc}</strong> (1 - 3 tỷ): Thuế GTGT tính trên tổng doanh thu; Thuế TNCN tính trên phần doanh thu vượt ngưỡng 1 tỷ đồng.`;
+      } else if (baseRevenue <= 10000000000) {
+        vatTax = baseRevenue * vatRate;
+        pitTax = (baseRevenue - 1000000000) * pitRate;
+        noteText = `ℹ️ Trạng thái: Doanh thu đang ở mức <strong>${tierNameDesc}</strong> (3 - 10 tỷ): Áp dụng nghĩa vụ kê khai thuế theo quý, sử dụng hóa đơn điện tử khởi tạo từ máy tính tiền.`;
+      } else {
+        vatTax = baseRevenue * vatRate;
+        pitTax = (baseRevenue - 1000000000) * pitRate * 1.2;
+        noteText = `ℹ️ Trạng thái: Doanh thu đang ở mức <strong>${tierNameDesc}</strong> (>= 10 tỷ): Thuộc quy mô doanh nghiệp lớn, thực hiện kê khai và hạch toán chi tiết theo chế độ kế toán.`;
+      }
+
+      let totalTax = vatTax + pitTax;
+
+      document.getElementById('tax-base-revenue').innerText = baseRevenue.toLocaleString() + 'đ';
+      document.getElementById('tax-vat-val').innerText = Math.round(vatTax).toLocaleString() + 'đ';
+      document.getElementById('tax-pit-val').innerText = Math.round(pitTax).toLocaleString() + 'đ';
+      document.getElementById('tax-total-val').innerText = Math.round(totalTax).toLocaleString() + 'đ';
+      document.getElementById('tax-note-desc').innerHTML = noteText;
+    }
+
+    function renderAdminCustomers() {
+      const container = document.getElementById('admin-customer-list');
+      if (!container) return;
+      const phoneKeys = Object.keys(customers);
+
+      if (phoneKeys.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:#888;">${currentLang === 'en' ? 'No customers registered yet!' : 'Chưa có dữ liệu khách hàng thân thiết!'}</p>`;
+        return;
+      }
+
+      container.innerHTML = phoneKeys.map(phone => {
+        const c = customers[phone];
+        const tier = getCustomerTier(c.totalSpent);
+        return `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #eee; flex-wrap:wrap; gap:6px;">
+            <div>
+              <strong>${c.name}</strong> (📞 ${c.phone})
+              <span class="tier-badge ${tier.class}">${tier.name}</span><br>
+              <span style="font-size:0.8rem; color:#666;">
+                ${currentLang === 'en' ? 'Spent' : 'Đã chi'}: <strong>${c.totalSpent.toLocaleString()}đ</strong> | 
+                ${currentLang === 'en' ? 'Points' : 'Điểm'}: <strong style="color:#e67e22">${c.points} pts</strong>
+              </span>
+            </div>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <input type="number" id="edit-points-${c.phone}" value="${c.points}" style="width:70px; padding:4px; font-size:0.8rem; border:1px solid #ccc; border-radius:4px;">
+              <button onclick="updateCustomerPoints('${c.phone}')" style="background:#2980b9; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.8rem; cursor:pointer;">${i18n[currentLang].updateBtn}</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateCustomerPoints(phone) {
+      const inputVal = parseInt(document.getElementById(`edit-points-${phone}`).value);
+      if (isNaN(inputVal) || inputVal < 0) return alert(currentLang === 'en' ? "Invalid points!" : "Vui lòng nhập điểm hợp lệ!");
+
+      if (customers[phone]) {
+        customers[phone].points = inputVal;
+        saveCustomersToStorage();
+        renderAdminCustomers();
+        alert(currentLang === 'en' ? "Customer points updated!" : "Đã cập nhật điểm cho khách hàng!");
+      }
+    }
+
+    function addNewMaterial(e) {
+      e.preventDefault();
+      const name = document.getElementById('mat-name').value.trim();
+      const unit = document.getElementById('mat-unit').value.trim();
+      const price = parseInt(document.getElementById('mat-price').value);
+
+      if (!name || !unit || isNaN(price)) return alert(currentLang === 'en' ? "Please fill in all material info!" : "Vui lòng nhập đầy đủ thông tin nguyên liệu!");
+
+      const newMat = { id: Date.now(), name, unit, price };
+      materials.push(newMat);
+      saveMaterialsToStorage();
+
+      document.getElementById('add-material-form').reset();
+      renderAdminMaterialList();
+      updateMaterialTotalStat();
+      alert(currentLang === 'en' ? "New material added successfully!" : "Đã thêm nguyên vật liệu mới thành công!");
+    }
+
+    function renderAdminMaterialList() {
+      const container = document.getElementById('admin-material-list');
+      if (materials.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:#888; font-size:0.85rem;">${currentLang === 'en' ? 'No raw materials in stock!' : 'Chưa có nguyên vật liệu nào trong kho!'}</p>`;
+        return;
+      }
+      container.innerHTML = materials.map(m => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed #eee; flex-wrap:wrap; gap:6px;">
+          <div style="flex-grow:1; font-size:0.9rem;">
+            <strong>${m.name}</strong> 
+            <span style="color:#666; font-size:0.8rem;">(${currentLang === 'en' ? 'Unit:' : 'Đơn vị:'} ${m.unit})</span>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input type="number" id="edit-mat-price-${m.id}" value="${m.price}" style="width:100px; padding:4px; font-size:0.8rem; border:1px solid #ccc; border-radius:4px;">
+            <button onclick="updateMaterialPrice(${m.id})" style="background:#2980b9; color:white; border:none; padding:5px 8px; border-radius:4px; font-size:0.8rem; cursor:pointer;">${i18n[currentLang].updateBtn}</button>
+            <button onclick="deleteMaterial(${m.id})" style="background:#ff4d4d; color:white; border:none; padding:5px 8px; border-radius:4px; font-size:0.8rem; cursor:pointer;">${i18n[currentLang].deleteBtn}</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateMaterialPrice(id) {
+      const inputVal = document.getElementById(`edit-mat-price-${id}`).value;
+      const newPrice = parseInt(inputVal);
+      if (isNaN(newPrice) || newPrice < 0) return alert(currentLang === 'en' ? "Invalid price!" : "Vui lòng nhập giá hợp lệ!");
+
+      const mat = materials.find(m => m.id === id);
+      if (mat) {
+        mat.price = newPrice;
+        saveMaterialsToStorage();
+        renderAdminMaterialList();
+        updateMaterialTotalStat();
+        alert(currentLang === 'en' ? `Updated price for "${mat.name}" successfully!` : `Đã cập nhật giá cho "${mat.name}" thành công!`);
+      }
+    }
+
+    function deleteMaterial(id) {
+      if (confirm(currentLang === 'en' ? "Confirm deletion of this material?" : "Hệ thống xác nhận xóa nguyên liệu này?")) {
+        materials = materials.filter(m => m.id !== id);
+        saveMaterialsToStorage();
+        renderAdminMaterialList();
+        updateMaterialTotalStat();
+      }
+    }
+
+    function updateMaterialTotalStat() {
+      let totalMatCost = materials.reduce((sum, m) => sum + Number(m.price), 0);
+      document.getElementById('stat-material-total').innerText = totalMatCost.toLocaleString() + 'đ';
+    }
+
+    function calculateStaffRevenue() {
+      const now = new Date();
+      const d = String(now.getDate()).padStart(2, '0');
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const y = now.getFullYear();
+      const todayStr = `${d}/${m}/${y}`;
+
+      let cashRev = 0;
+      let transferRev = 0;
+      let onlineRev = 0;
+
+      orders.forEach(o => {
+        if (o.time && o.time.includes(todayStr)) {
+          if (o.customerAddress === "Khách ăn tại quán / Tại quầy" || o.customerAddress === "Dine-in / Direct Counter") {
+            if (o.paymentStatus === 'Đã thanh toán' || o.paymentStatus === 'Paid') {
+              if (o.paymentMethod === 'cash') {
+                cashRev += Number(o.total);
+              } else if (o.paymentMethod === 'qr') {
+                transferRev += Number(o.total);
+              }
+            }
+          } else {
+            if (o.status === 'Giao thành công' || o.status === 'Success') {
+              onlineRev += Number(o.total);
+            }
+          }
+        }
+      });
+
+      const totalRev = cashRev + transferRev + onlineRev;
+
+      document.getElementById('staff-stat-cash').innerText = cashRev.toLocaleString() + 'đ';
+      document.getElementById('staff-stat-transfer').innerText = transferRev.toLocaleString() + 'đ';
+      document.getElementById('staff-stat-online').innerText = onlineRev.toLocaleString() + 'đ';
+      document.getElementById('staff-stat-total').innerText = totalRev.toLocaleString() + 'đ';
+    }
+
+    function toggleRevInputs() {
+      const type = document.getElementById('rev-type').value;
+      const wrapper = document.getElementById('filter-input-wrapper');
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+
+      if (type === 'day') {
+        wrapper.innerHTML = `<input type="date" id="rev-date-input" value="${year}-${month}-${day}" onchange="calculateRevenue()">`;
+      } else if (type === 'month') {
+        wrapper.innerHTML = `<input type="month" id="rev-month-input" value="${year}-${month}" onchange="calculateRevenue()">`;
+      } else if (type === 'year') {
+        wrapper.innerHTML = `
+          <select id="rev-year-input" onchange="calculateRevenue()">
+            <option value="${year}">${year}</option>
+            <option value="${year-1}">${year-1}</option>
+            <option value="${year-2}">${year-2}</option>
+          </select>`;
+      }
+      calculateRevenue();
+    }
+
+    function calculateRevenue() {
+      const type = document.getElementById('rev-type').value;
+      let totalRev = 0;
+      let totalCost = 0;
+
+      let chartLabels = [];
+      let chartRevenueData = [];
+      let chartProfitData = [];
+
+      let productStats = {};
+
+      if (type === 'day') {
+        let baseDateVal = document.getElementById('rev-date-input') ? document.getElementById('rev-date-input').value : null;
+        if (!baseDateVal) {
+          const now = new Date();
+          baseDateVal = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        }
+        const [y, m, d] = baseDateVal.split('-');
+        const targetDateStr = `${d}/${m}/${y}`;
+
+        chartLabels = ["Sáng (06-11h)", "Trưa (11-14h)", "Chiều (14-18h)", "Tối (18-23h)"];
+        let revSlots = [0, 0, 0, 0];
+        let profSlots = [0, 0, 0, 0];
+
+        orders.forEach(o => {
+          let isEligible = false;
+          if (o.customerAddress === "Khách ăn tại quán / Tại quầy" || o.customerAddress === "Dine-in / Direct Counter") {
+            if (o.paymentStatus === 'Đã thanh toán' || o.paymentStatus === 'Paid') isEligible = true;
+          } else {
+            if (o.status === 'Giao thành công' || o.status === 'Success') isEligible = true;
+          }
+
+          if (isEligible && o.time && o.time.includes(targetDateStr)) {
+            totalRev += Number(o.total);
+            let orderCost = 0;
+            if (o.items && Array.isArray(o.items)) {
+              o.items.forEach(item => {
+                let productRef = products.find(p => p.name === item.name || p.nameEn === item.name);
+                let itemCostPerUnit = productRef ? Number(productRef.cost || Math.round(productRef.price * 0.7)) : 0;
+                let itemTotalCost = itemCostPerUnit * Number(item.qty);
+                orderCost += itemTotalCost;
+                
+                let itemProfit = Number(item.price) - itemTotalCost;
+                if (!productStats[item.name]) {
+                  productStats[item.name] = { qty: 0, revenue: 0, profit: 0 };
+                }
+                productStats[item.name].qty += Number(item.qty);
+                productStats[item.name].revenue += Number(item.price);
+                productStats[item.name].profit += itemProfit;
+              });
+            }
+            totalCost += orderCost;
+            let orderProfit = Number(o.total) - orderCost;
+
+            let hourMatch = o.time.match(/\d{2}:\d{2}:\d{2}/);
+            let hour = 12;
+            if (hourMatch) {
+              hour = parseInt(hourMatch[0].split(':')[0]);
+            }
+            let slotIdx = 1;
+            if (hour >= 6 && hour < 11) slotIdx = 0;
+            else if (hour >= 11 && hour < 14) slotIdx = 1;
+            else if (hour >= 14 && hour < 18) slotIdx = 2;
+            else slotIdx = 3;
+
+            revSlots[slotIdx] += Number(o.total);
+            profSlots[slotIdx] += orderProfit;
+          }
+        });
+        chartRevenueData = revSlots;
+        chartProfitData = profSlots;
+
+      } else if (type === 'month') {
+        let val = document.getElementById('rev-month-input') ? document.getElementById('rev-month-input').value : null;
+        if (!val) {
+          const now = new Date();
+          val = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        }
+        const [y, m] = val.split('-');
+        const targetMonthStr = `/${m}/${y}`;
+
+        chartLabels = ["Tuần 1 (01-07)", "Tuần 2 (08-14)", "Tuần 3 (15-21)", "Tuần 4 (22-31)"];
+        let revSlots = [0, 0, 0, 0];
+        let profSlots = [0, 0, 0, 0];
+
+        orders.forEach(o => {
+          let isEligible = false;
+          if (o.customerAddress === "Khách ăn tại quán / Tại quầy" || o.customerAddress === "Dine-in / Direct Counter") {
+            if (o.paymentStatus === 'Đã thanh toán' || o.paymentStatus === 'Paid') isEligible = true;
+          } else {
+            if (o.status === 'Giao thành công' || o.status === 'Success') isEligible = true;
+          }
+
+          if (isEligible && o.time && o.time.includes(targetMonthStr)) {
+            totalRev += Number(o.total);
+            let orderCost = 0;
+            if (o.items && Array.isArray(o.items)) {
+              o.items.forEach(item => {
+                let productRef = products.find(p => p.name === item.name || p.nameEn === item.name);
+                let itemCostPerUnit = productRef ? Number(productRef.cost || Math.round(productRef.price * 0.7)) : 0;
+                let itemTotalCost = itemCostPerUnit * Number(item.qty);
+                orderCost += itemTotalCost;
+                
+                let itemProfit = Number(item.price) - itemTotalCost;
+                if (!productStats[item.name]) {
+                  productStats[item.name] = { qty: 0, revenue: 0, profit: 0 };
+                }
+                productStats[item.name].qty += Number(item.qty);
+                productStats[item.name].revenue += Number(item.price);
+                productStats[item.name].profit += itemProfit;
+              });
+            }
+            totalCost += orderCost;
+            let orderProfit = Number(o.total) - orderCost;
+
+            let dayMatch = o.time.match(/^(\d{2})/);
+            let dayNum = dayMatch ? parseInt(dayMatch[1]) : 1;
+            let slotIdx = 3;
+            if (dayNum <= 7) slotIdx = 0;
+            else if (dayNum <= 14) slotIdx = 1;
+            else if (dayNum <= 21) slotIdx = 2;
+
+            revSlots[slotIdx] += Number(o.total);
+            profSlots[slotIdx] += orderProfit;
+          }
+        });
+        chartRevenueData = revSlots;
+        chartProfitData = profSlots;
+
+      } else if (type === 'year') {
+        let val = document.getElementById('rev-year-input') ? document.getElementById('rev-year-input').value : new Date().getFullYear().toString();
+        
+        chartLabels = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
+        let revSlots = new Array(12).fill(0);
+        let profSlots = new Array(12).fill(0);
+
+        orders.forEach(o => {
+          let isEligible = false;
+          if (o.customerAddress === "Khách ăn tại quán / Tại quầy" || o.customerAddress === "Dine-in / Direct Counter") {
+            if (o.paymentStatus === 'Đã thanh toán' || o.paymentStatus === 'Paid') isEligible = true;
+          } else {
+            if (o.status === 'Giao thành công' || o.status === 'Success') isEligible = true;
+          }
+
+          if (isEligible && o.time && o.time.includes(val)) {
+            totalRev += Number(o.total);
+            let orderCost = 0;
+            if (o.items && Array.isArray(o.items)) {
+              o.items.forEach(item => {
+                let productRef = products.find(p => p.name === item.name || p.nameEn === item.name);
+                let itemCostPerUnit = productRef ? Number(productRef.cost || Math.round(productRef.price * 0.7)) : 0;
+                let itemTotalCost = itemCostPerUnit * Number(item.qty);
+                orderCost += itemTotalCost;
+                
+                let itemProfit = Number(item.price) - itemTotalCost;
+                if (!productStats[item.name]) {
+                  productStats[item.name] = { qty: 0, revenue: 0, profit: 0 };
+                }
+                productStats[item.name].qty += Number(item.qty);
+                productStats[item.name].revenue += Number(item.price);
+                productStats[item.name].profit += itemProfit;
+              });
+            }
+            totalCost += orderCost;
+            let orderProfit = Number(o.total) - orderCost;
+
+            let monthMatch = o.time.match(/\/(\d{2})\//);
+            if (monthMatch) {
+              let mIdx = parseInt(monthMatch[1]) - 1;
+              if (mIdx >= 0 && mIdx < 12) {
+                revSlots[mIdx] += Number(o.total);
+                profSlots[mIdx] += orderProfit;
+              }
+            }
+          }
+        });
+        chartRevenueData = revSlots;
+        chartProfitData = profSlots;
+      }
+
+      const estimatedProfit = totalRev - totalCost;
+
+      document.getElementById('stat-revenue').innerText = totalRev.toLocaleString() + 'đ';
+      document.getElementById('stat-cost').innerText = totalCost.toLocaleString() + 'đ';
+      document.getElementById('stat-profit').innerText = estimatedProfit.toLocaleString() + 'đ';
+
+      renderTopProductsTable(productStats);
+      renderRevenueChart(chartLabels, chartRevenueData, chartProfitData);
+      calculateTaxObligation();
+    }
+
+    function renderTopProductsTable(productStats) {
+      const tbody = document.getElementById('top-products-tbody');
+      if (!tbody) return;
+
+      let sortedProducts = Object.keys(productStats).map(name => {
+        return {
+          name: name,
+          qty: productStats[name].qty,
+          revenue: productStats[name].revenue,
+          profit: productStats[name].profit
+        };
+      }).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+
+      if (sortedProducts.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#888;">${i18n[currentLang].noDataYet}</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = sortedProducts.map((p, index) => {
+        let badgeColor = '#7f8c8d';
+        if (index === 0) badgeColor = '#f1c40f';
+        else if (index === 1) badgeColor = '#95a5a6';
+        else if (index === 2) badgeColor = '#d35400';
+
+        return `
+          <tr>
+            <td><span style="display:inline-block; width:20px; height:20px; line-height:20px; text-align:center; background:${badgeColor}; color:white; border-radius:50%; font-size:0.75rem; font-weight:bold; margin-right:5px;">${index + 1}</span> <strong>${p.name}</strong></td>
+            <td>${p.qty}</td>
+            <td style="color: #2980b9; font-weight: bold;">${p.revenue.toLocaleString()}đ</td>
+            <td style="color: #27ae60; font-weight: bold;">${p.profit.toLocaleString()}đ</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderRevenueChart(labels, revenueData, profitData) {
+      const canvasEl = document.getElementById('revenueChart');
+      if (!canvasEl) return;
+      const ctx = canvasEl.getContext('2d');
+      
+      if (revenueChartInstance) {
+        revenueChartInstance.destroy();
+      }
+
+      const labelRev = currentLang === 'en' ? 'Revenue (VND)' : 'Doanh Thu (VNĐ)';
+      const labelProfit = currentLang === 'en' ? 'Net Profit (VND)' : 'Lợi Nhuận (VNĐ)';
+
+      revenueChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              type: 'bar',
+              label: labelRev,
+              data: revenueData,
+              backgroundColor: 'rgba(52, 152, 219, 0.7)',
+              borderColor: 'rgba(52, 152, 219, 1)',
+              borderWidth: 1,
+              borderRadius: 4
+            },
+            {
+              type: 'line',
+              label: labelProfit,
+              data: profitData,
+              borderColor: 'rgba(46, 204, 113, 1)',
+              backgroundColor: 'rgba(46, 204, 113, 0.1)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom' }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  if (value >= 1000000) return (value / 1000000) + 'M';
+                  if (value >= 1000) return (value / 1000) + 'k';
+                  return value;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function showQRPaymentModal(amount, orderObj, isStaffOnsite = false) {
+      const qrUrl = `https://img.vietqr.io/image/${BANK_CONFIG.BANK_ID}-${BANK_CONFIG.ACCOUNT_NO}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent("Thanh toan don " + orderObj.customerName)}&accountName=${encodeURIComponent(BANK_CONFIG.ACCOUNT_NAME)}`;
+      
+      document.getElementById('qr-modal-amount').innerText = amount.toLocaleString() + 'đ';
+      document.getElementById('qr-code-img').src = qrUrl;
+      document.getElementById('qr-bank-info').innerText = `Ngân hàng: ${BANK_CONFIG.BANK_ID} - STK: ${BANK_CONFIG.ACCOUNT_NO} (${BANK_CONFIG.ACCOUNT_NAME})`;
+      
+      orderObj.paymentMethod = 'qr';
+      document.getElementById('qr-payment-modal').dataset.pendingOrder = JSON.stringify(orderObj);
+      document.getElementById('qr-payment-modal').dataset.isStaffOnsite = isStaffOnsite ? "true" : "false";
+      document.getElementById('qr-payment-modal').style.display = 'flex';
+    }
+
+    function completeQRPaymentOrder() {
+      const modalEl = document.getElementById('qr-payment-modal');
+      const orderDataStr = modalEl.dataset.pendingOrder;
+      const isStaffOnsite = modalEl.dataset.isStaffOnsite === "true";
+      
+      modalEl.dataset.pendingOrder = "";
+      modalEl.style.display = 'none';
+
+      if (orderDataStr) {
+        const orderObj = JSON.parse(orderDataStr);
+        orderObj.paymentStatus = currentLang === 'en' ? 'Paid' : 'Đã thanh toán';
+        
+        if (isStaffOnsite) {
+          const existingIndex = orders.findIndex(o => o.id === orderObj.id);
+          if (existingIndex !== -1) {
+            orders[existingIndex] = orderObj;
+          } else {
+            orders.unshift(orderObj);
+          }
+        } else {
+          orderObj.status = currentLang === 'en' ? 'Pending' : 'Chờ xác nhận';
+          orders.unshift(orderObj);
+          cart = {};
+          updateCartUI();
+        }
+
+        rewardCustomerPoints(orderObj.customerPhone, orderObj.customerName, orderObj.total);
+        
+        saveOrdersToStorage();
+        renderAdminOrders();
+        renderStaffOrders();
+        renderAdminCustomers();
+        calculateRevenue();
+        calculateStaffRevenue();
+
+        alert(i18n[currentLang].alertPaidSuccess);
+        if (!isStaffOnsite) {
+          showCustomerView();
+        }
+      }
+    }
+
+    function nextOrderStatus(orderId) {
+      const order = orders.find(o => o.id === orderId);
+      if (order && order.customerAddress !== "Khách ăn tại quán / Tại quầy" && order.customerAddress !== "Dine-in / Direct Counter") {
+        if (order.status === 'Chờ xác nhận' || order.status === 'Pending') { 
+          order.status = currentLang === 'en' ? 'Shipping' : 'Đang giao hàng'; 
+        } else if (order.status === 'Đang giao hàng' || order.status === 'Shipping') { 
+          order.status = currentLang === 'en' ? 'Success' : 'Giao thành công'; 
+          rewardCustomerPoints(order.customerPhone, order.customerName, order.total);
+        } else { 
+          order.status = currentLang === 'en' ? 'Pending' : 'Chờ xác nhận'; 
+        }
+        
+        saveOrdersToStorage();
+        renderAdminOrders();
+        renderStaffOrders();
+        renderAdminCustomers();
+        calculateRevenue();
+        calculateStaffRevenue();
+      }
+    }
+
+    function handleOnsitePaymentChoice(orderId) {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+
+      if (order.paymentStatus === 'Đã thanh toán' || order.paymentStatus === 'Paid') {
+        alert(currentLang === 'en' ? "This order is already paid and locked!" : "Đơn hàng này đã được xác nhận thanh toán và bị khóa, không thể thay đổi lại trạng thái!");
+        return;
+      }
+
+      const methodSelect = document.getElementById(`pay-method-select-${orderId}`);
+      const chosenMethod = methodSelect ? methodSelect.value : 'cash';
+
+      if (chosenMethod === 'cash') {
+        order.paymentStatus = currentLang === 'en' ? 'Paid' : 'Đã thanh toán';
+        order.paymentMethod = 'cash';
+        
+        rewardCustomerPoints(order.customerPhone, order.customerName, order.total);
+
+        saveOrdersToStorage();
+        renderAdminOrders();
+        renderStaffOrders();
+        renderAdminCustomers();
+        calculateRevenue();
+        calculateStaffRevenue();
+        alert(currentLang === 'en' ? "Cash payment confirmed successfully!" : "Đã xác nhận thanh toán bằng Tiền mặt thành công!");
+      } else if (chosenMethod === 'qr') {
+        order.paymentMethod = 'qr';
+        showQRPaymentModal(order.total, order, true);
+      }
+    }
+
+    function staffNextOrderStatus(orderId) {
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
+        if (order.status === 'Chờ xác nhận' || order.status === 'Pending') {
+          order.status = currentLang === 'en' ? 'Shipping' : 'Đang giao hàng';
+        } else if (order.status === 'Đang giao hàng' || order.status === 'Shipping') {
+          order.status = currentLang === 'en' ? 'Success' : 'Giao thành công';
+          rewardCustomerPoints(order.customerPhone, order.customerName, order.total);
+        }
+        
+        saveOrdersToStorage();
+        renderAdminOrders();
+        renderStaffOrders();
+        renderAdminCustomers();
+        calculateRevenue();
+        calculateStaffRevenue();
+      }
+    }
+
+    function openAddMoreModal(orderId) {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+
+      if (order.paymentStatus === 'Đã thanh toán' || order.paymentStatus === 'Paid') {
+        alert(currentLang === 'en' ? "This order is paid and locked!" : "Đơn hàng này đã thanh toán và bị khóa, không thể gọi thêm món!");
+        return;
+      }
+
+      activeAddMoreOrderId = orderId;
+      addMoreCart = {};
+      
+      document.getElementById('add-more-title').innerText = (currentLang === 'en' ? '➕ Add Items for: ' : '➕ Gọi Thêm Đồ Cho: ') + order.customerName;
+      renderAddMoreProductsList();
+      document.getElementById('add-more-modal').style.display = 'flex';
+    }
+
+    function closeAddMoreModal() {
+      document.getElementById('add-more-modal').style.display = 'none';
+      activeAddMoreOrderId = null;
+      addMoreCart = {};
+    }
+
+    function renderAddMoreProductsList() {
+      const container = document.getElementById('add-more-products-list');
+      if (products.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:#888;">${currentLang === 'en' ? 'Menu is empty!' : 'Menu chưa có món nào!'}</p>`;
+        return;
+      }
+
+      container.innerHTML = products.map(p => {
+        const qty = addMoreCart[p.id] || 0;
+        const displayName = currentLang === 'en' ? (p.nameEn || p.name) : p.name;
+        return `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed #eee;">
+            <div>
+              <strong>${displayName}</strong><br>
+              <span style="color:#e63946; font-size:0.85rem;">${p.price.toLocaleString()}đ</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button type="button" class="qty-btn" onclick="changeAddMoreQty(${p.id}, -1)">-</button>
+              <span id="add-more-qty-${p.id}" style="font-weight:bold; width:20px; text-align:center;">${qty}</span>
+              <button type="button" class="qty-btn" onclick="changeAddMoreQty(${p.id}, 1)">+</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function changeAddMoreQty(productId, delta) {
+      let current = addMoreCart[productId] || 0;
+      current += delta;
+      if (current <= 0) {
+        delete addMoreCart[productId];
+      } else {
+        addMoreCart[productId] = current;
+      }
+      const qtySpan = document.getElementById(`add-more-qty-${productId}`);
+      if (qtySpan) {
+        qtySpan.innerText = addMoreCart[productId] || 0;
+      }
+    }
+
+    function submitAddMoreItems() {
+      if (!activeAddMoreOrderId) return;
+      if (Object.keys(addMoreCart).length === 0) {
+        return alert(currentLang === 'en' ? "Please select at least one item!" : "Vui lòng chọn ít nhất một món để gọi thêm!");
+      }
+
+      const order = orders.find(o => o.id === activeAddMoreOrderId);
+      if (!order) return;
+
+      let addedTotal = 0;
+      for (let pid in addMoreCart) {
+        const product = products.find(p => p.id == pid);
+        const qtyToAdd = addMoreCart[pid];
+        if (product && qtyToAdd > 0) {
+          addedTotal += product.price * qtyToAdd;
+          const itemName = currentLang === 'en' ? (product.nameEn || product.name) : product.name;
+          
+          const existingItem = order.items.find(i => i.name === itemName || i.name === product.name);
+          if (existingItem) {
+            existingItem.qty += qtyToAdd;
+            existingItem.price += product.price * qtyToAdd;
+          } else {
+            order.items.push({
+              name: itemName,
+              qty: qtyToAdd,
+              price: product.price * qtyToAdd
+            });
+          }
+        }
+      }
+
+      order.total += addedTotal;
+      saveOrdersToStorage();
+      renderAdminOrders();
+      renderStaffOrders();
+      calculateStaffRevenue();
+
+      closeAddMoreModal();
+      alert(currentLang === 'en' ? "Items added successfully!" : "Đã gọi thêm món thành công và cập nhật vào đơn của khách!");
+    }
+
+    function getStatusClass(status) {
+      if (status === 'Chờ xác nhận' || status === 'Pending') return 'status-new';
+      if (status === 'Đang giao hàng' || status === 'Shipping') return 'status-shipping';
+      return 'status-success';
+    }
+
+    function getPaymentStatusClass(pStatus) {
+      if (pStatus === 'Đã thanh toán' || pStatus === 'Paid') return 'payment-paid';
+      return 'payment-unpaid';
+    }
+
+    function renderAdminOrders() {
+      const container = document.getElementById('order-list-container');
+      if (!container) return;
+      if (orders.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:#888; padding:15px;">${currentLang === 'en' ? 'No orders yet!' : 'Chưa có đơn hàng nào!'}</p>`;
+        return;
+      }
+
+      container.innerHTML = orders.map(o => {
+        let statusBadgeHTML = '';
+        let actionExtraHTML = '';
+
+        const isOnsite = (o.customerAddress === "Khách ăn tại quán / Tại quầy" || o.customerAddress === "Dine-in / Direct Counter");
+        const isPaid = (o.paymentStatus === 'Đã thanh toán' || o.paymentStatus === 'Paid');
+
+        if (isOnsite) {
+          statusBadgeHTML = `<span class="btn-status ${getPaymentStatusClass(o.paymentStatus)}">${o.paymentStatus} (${o.paymentMethod === 'qr' ? 'QR' : (currentLang === 'en' ? 'Cash' : 'Tiền mặt')})</span>`;
+          if (!isPaid) {
+            actionExtraHTML = `
+              <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                <button onclick="openAddMoreModal(${o.id})" style="padding:6px 10px; border:none; background:#e67e22; color:white; border-radius:5px; cursor:pointer; font-size:0.8rem; font-weight:bold;">${currentLang === 'en' ? '➕ Add Item' : '➕ Gọi thêm món'}</button>
+                <select id="pay-method-select-${o.id}" style="padding:5px; border:1px solid #ccc; border-radius:4px; font-size:0.8rem;">
+                  <option value="cash">${currentLang === 'en' ? '💵 Cash' : '💵 Tiền mặt'}</option>
+                  <option value="qr">${currentLang === 'en' ? '📱 QR Code' : '📱 Quét mã QR'}</option>
+                </select>
+                <button onclick="handleOnsitePaymentChoice(${o.id})" style="padding:6px 10px; border:none; background:#27ae60; color:white; border-radius:5px; cursor:pointer; font-size:0.8rem; font-weight:bold;">✅ ${currentLang === 'en' ? 'Confirm Payment' : 'Xác nhận Thanh Toán'}</button>
+              </div>`;
+          } else {
+            actionExtraHTML = `<span style="font-size:0.8rem; color:#27ae60; font-weight:bold;">🔒 ${currentLang === 'en' ? 'Locked (Paid)' : 'Đã khóa (Đã thanh toán)'}</span>`;
+          }
+        } else {
+          statusBadgeHTML = `<span class="btn-status ${getStatusClass(o.status)}">${o.status}</span>`;
+          actionExtraHTML = `<button onclick="nextOrderStatus(${o.id})" style="padding:6px 10px; border:1px solid #3498db; background:#ecf0f1; border-radius:5px; cursor:pointer; font-size:0.8rem; font-weight:bold; color:#2c3e50;">🔄 ${currentLang === 'en' ? 'Change Status' : 'Đổi trạng thái'}</button>`;
+        }
+
+        return `
+          <div class="order-item">
+            <div class="order-header">
+              <span>⏰ ${o.time}</span>
+              ${statusBadgeHTML}
+            </div>
+            <div class="order-customer">👤 ${o.customerName} - 📞 ${o.customerPhone}</div>
+            <div style="font-size:0.85rem; color:#555;">📍 ${o.customerAddress}</div>
+            <ul class="order-detail-list">
+              ${o.items.map(i => `<li>${i.name} x${i.qty} (${i.price.toLocaleString()}đ)</li>`).join('')}
+            </ul>
+            <div style="font-weight:bold; color:#e63946; font-size:0.95rem; margin-bottom:6px;">${currentLang === 'en' ? 'Total' : 'Tổng tiền'}: ${o.total.toLocaleString()}đ</div>
+            <div class="order-actions">
+              <a href="tel:${o.customerPhone}" class="btn-call">${i18n[currentLang].callBtn}</a>
+              ${actionExtraHTML}
+              <button onclick="deleteOrder(${o.id})" style="padding:6px 10px; border:none; background:#ff4d4d; color:white; border-radius:5px; cursor:pointer; font-size:0.8rem;">${i18n[currentLang].deleteBtn}</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderStaffOrders() {
+      const container = document.getElementById('staff-order-list-container');
+      if (!container) return;
+      if (orders.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:#888; padding:15px;">${currentLang === 'en' ? 'No orders yet!' : 'Chưa có đơn hàng nào!'}</p>`;
+        return;
+      }
+
+      container.innerHTML = orders.map(o => {
+        let statusBadgeHTML = '';
+        let actionButtonHTML = '';
+
+        const isOnsite = (o.customerAddress === "Khách ăn tại quán / Tại quầy" || o.customerAddress === "Dine-in / Direct Counter");
+        const isPaid = (o.paymentStatus === 'Đã thanh toán' || o.paymentStatus === 'Paid');
+
+        if (isOnsite) {
+          statusBadgeHTML = `<span class="btn-status ${getPaymentStatusClass(o.paymentStatus)}">${o.paymentStatus} (${o.paymentMethod === 'qr' ? 'QR' : (currentLang === 'en' ? 'Cash' : 'Tiền mặt')})</span>`;
+          if (!isPaid) {
+            actionButtonHTML = `
+              <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                <button onclick="openAddMoreModal(${o.id})" style="padding:6px 10px; border:none; background:#e67e22; color:white; border-radius:5px; cursor:pointer; font-size:0.8rem; font-weight:bold;">${currentLang === 'en' ? '➕ Add Item' : '➕ Gọi thêm món'}</button>
+                <select id="pay-method-select-${o.id}" style="padding:5px; border:1px solid #ccc; border-radius:4px; font-size:0.8rem;">
+                  <option value="cash">${currentLang === 'en' ? '💵 Cash' : '💵 Tiền mặt'}</option>
+                  <option value="qr">${currentLang === 'en' ? '📱 QR Code' : '📱 Quét mã QR'}</option>
+                </select>
+                <button onclick="handleOnsitePaymentChoice(${o.id})" style="padding:6px 12px; border:none; background:#27ae60; color:white; border-radius:5px; cursor:pointer; font-size:0.8rem; font-weight:bold;">✅ ${currentLang === 'en' ? 'Confirm Payment' : 'Xác nhận Thanh Toán'}</button>
+              </div>`;
+          } else {
+            actionButtonHTML = `<span style="font-size:0.8rem; color:#27ae60; font-weight:bold;">🔒 ${currentLang === 'en' ? 'Payment Locked' : 'Đã khóa thanh toán'}</span>`;
+          }
+        } else {
+          statusBadgeHTML = `<span class="btn-status ${getStatusClass(o.status)}">${o.status}</span>`;
+          if (o.status === 'Chờ xác nhận' || o.status === 'Pending') {
+            actionButtonHTML = `<button onclick="staffNextOrderStatus(${o.id})" style="padding:6px 12px; border:none; background:#2980b9; color:white; border-radius:5px; cursor:pointer; font-size:0.8rem; font-weight:bold;">🚚 ${currentLang === 'en' ? 'Confirm Shipping' : 'Xác nhận Đang giao'}</button>`;
+          } else if (o.status === 'Đang giao hàng' || o.status === 'Shipping') {
+            actionButtonHTML = `<button onclick="staffNextOrderStatus(${o.id})" style="padding:6px 12px; border:none; background:#27ae60; color:white; border-radius:5px; cursor:pointer; font-size:0.8rem; font-weight:bold;">✅ ${currentLang === 'en' ? 'Confirm Success' : 'Xác nhận Giao thành công'}</button>`;
+          } else {
+            actionButtonHTML = `<span style="font-size:0.8rem; color:#27ae60; font-weight:bold;">🔒 ${currentLang === 'en' ? 'Completed (Locked)' : 'Đã hoàn tất (Đã khóa)'}</span>`;
+          }
+        }
+
+        return `
+          <div class="order-item">
+            <div class="order-header">
+              <span>⏰ ${o.time}</span>
+              ${statusBadgeHTML}
+            </div>
+            <div class="order-customer">👤 ${o.customerName} - 📞 ${o.customerPhone}</div>
+            <div style="font-size:0.85rem; color:#555;">📍 ${o.customerAddress}</div>
+            <ul class="order-detail-list">
+              ${o.items.map(i => `<li>${i.name} x${i.qty} (${i.price.toLocaleString()}đ)</li>`).join('')}
+            </ul>
+            <div style="font-weight:bold; color:#e63946; font-size:0.95rem; margin-bottom:6px;">${currentLang === 'en' ? 'Total' : 'Tổng tiền'}: ${o.total.toLocaleString()}đ</div>
+            <div class="order-actions">
+              <a href="tel:${o.customerPhone}" class="btn-call">${i18n[currentLang].callBtn}</a>
+              ${actionButtonHTML}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function deleteOrder(orderId) {
+      if (confirm(i18n[currentLang].alertDeleteOrder)) {
+        orders = orders.filter(o => o.id !== orderId);
+        saveOrdersToStorage();
+        renderAdminOrders();
+        renderStaffOrders();
+        calculateRevenue();
+        calculateStaffRevenue();
+      }
+    }
+
+    function previewImage(event) {
+        const file = event.target.files[0];
+        const previewImg = document.getElementById('image-preview');
+        const previewText = document.getElementById('preview-text');
+
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                temporaryImageData = e.target.result;
+                previewImg.src = temporaryImageData;
+                previewImg.style.display = 'block';
+                previewText.style.display = 'none';
+            }
+            reader.readAsDataURL(file);
+        } else {
+            temporaryImageData = "";
+            previewImg.src = '';
+            previewImg.style.display = 'none';
+            previewText.style.display = 'block';
+        }
+    }
+
+    function renderMenu(items) {
+      const container = document.getElementById('menu-container');
+      if (!container) return;
+      if (!Array.isArray(items) || items.length === 0) {
+        container.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:#888; padding:20px;">${currentLang === 'en' ? 'No items available!' : 'Chưa có món nào trong menu!'}</p>`;
+        return;
+      }
+      container.innerHTML = items.map(p => {
+        const displayName = currentLang === 'en' ? (p.nameEn || p.name) : p.name;
+        const displayDesc = currentLang === 'en' ? (p.descEn || p.desc) : p.desc;
+        return `
+          <div class="product-card">
+            <img src="${p.img}" class="product-img" onerror="this.src='https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=300'">
+            <div class="product-info">
+              <div>
+                <div class="product-title">${displayName}</div>
+                <div class="product-desc">${displayDesc}</div>
+              </div>
+              <div>
+                <div class="product-price">${p.price.toLocaleString()}đ</div>
+                <button class="add-btn" onclick="addToCart(${p.id})">${i18n[currentLang].addBtnText}</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function filterMenu(category, event) {
+      document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      if (category === 'all') renderMenu(products);
+      else renderMenu(products.filter(p => p.category === category));
+    }
+
+    function addToCart(id) { cart[id] = (cart[id] || 0) + 1; updateCartUI(); }
+    function changeQuantity(id, delta) {
+      if (cart[id]) {
+        cart[id] += delta;
+        if (cart[id] <= 0) delete cart[id];
+      }
+      updateCartUI(); renderCartItems();
+    }
+    function clearCart() { cart = {}; updateCartUI(); renderCartItems(); }
+
+    function updateCartUI() {
+      let count = 0, total = 0;
+      for (let id in cart) {
+        const item = products.find(p => p.id == id);
+        if (item) { count += cart[id]; total += item.price * cart[id]; }
+      }
+      document.getElementById('cart-count').innerText = count;
+      document.getElementById('cart-total').innerText = total.toLocaleString() + 'đ';
+      document.getElementById('modal-cart-total').innerText = total.toLocaleString() + 'đ';
+    }
+
+    function renderCartItems() {
+      const container = document.getElementById('cart-items-container');
+      if (!container) return;
+      if (Object.keys(cart).length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:#888; padding:15px;">${currentLang === 'en' ? 'Cart is empty!' : 'Giỏ hàng trống!'}</p>`;
+        return;
+      }
+      let html = '';
+      for (let id in cart) {
+        const item = products.find(p => p.id == id);
+        if (item) {
+          const itemName = currentLang === 'en' ? (item.nameEn || item.name) : item.name;
+          html += `
+            <div class="cart-item">
+              <div>
+                <div style="font-weight:bold; font-size:0.9rem;">${itemName}</div>
+                <div style="color:#e63946; font-size:0.80rem;">${(item.price * cart[id]).toLocaleString()}đ</div>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <button class="qty-btn" onclick="changeQuantity(${item.id}, -1)">-</button>
+                <span>${cart[id]}</span>
+                <button class="qty-btn" onclick="changeQuantity(${item.id}, 1)">+</button>
+              </div>
+            </div>`;
+        }
+      }
+      container.innerHTML = html;
+    }
+
+    function openCartModal() { 
+      renderCartItems(); 
+      toggleOrderTypeOptions();
+      document.getElementById('cart-modal').style.display = 'flex'; 
+    }
+    
+    function closeCartModal() { document.getElementById('cart-modal').style.display = 'none'; }
+    
+    function toggleOrderTypeOptions() {
+      selectedOrderType = document.getElementById('cart-order-type').value;
+      const paymentMethodSelect = document.getElementById('cart-payment-method');
+      
+      if (selectedOrderType === 'onsite') {
+        paymentMethodSelect.innerHTML = currentLang === 'en' ? `
+          <option value="cash">💵 Cash (Default Unpaid)</option>
+          <option value="qr">📱 QR Code Transfer</option>
+        ` : `
+          <option value="cash">💵 Tiền mặt (Mặc định Chưa thanh toán)</option>
+          <option value="qr">📱 Quét mã QR chuyển khoản</option>
+        `;
+      } else {
+        paymentMethodSelect.innerHTML = currentLang === 'en' ? `
+          <option value="cod">💵 Cash on Delivery (COD / Zalo)</option>
+          <option value="qr">📱 Bank Transfer QR Code</option>
+        ` : `
+          <option value="cod">💵 Thanh toán khi nhận hàng (COD / Gửi Zalo)</option>
+          <option value="qr">📱 Quét mã QR Chuyển khoản ngân hàng</option>
+        `;
+      }
+    }
+
+    function goToCheckout() {
+      if (Object.keys(cart).length === 0) return alert(i18n[currentLang].alertCartEmpty);
+      closeCartModal();
+      
+      selectedOrderType = document.getElementById('cart-order-type').value;
+      selectedPaymentMethod = document.getElementById('cart-payment-method').value;
+      
+      const modalTitle = document.getElementById('checkout-modal-title');
+      const labelName = document.getElementById('label-name');
+      const addressGroup = document.getElementById('address-group');
+      
+      currentOrderSubtotal = 0;
+      for (let id in cart) {
+        const item = products.find(p => p.id == id);
+        if (item) currentOrderSubtotal += item.price * cart[id];
+      }
+      currentDiscountAmount = 0;
+
+      document.getElementById('checkout-subtotal-val').innerText = currentOrderSubtotal.toLocaleString() + 'đ';
+      document.getElementById('checkout-final-val').innerText = currentOrderSubtotal.toLocaleString() + 'đ';
+      document.getElementById('discount-row').style.display = 'none';
+      document.getElementById('use-points-checkbox').checked = false;
+      document.getElementById('loyalty-info-box').style.display = 'none';
+
+      if (selectedOrderType === 'onsite') {
+        modalTitle.innerText = currentLang === 'en' ? "🏪 Dine-in Information" : "🏪 Thông Tin Khách Ăn Tại Quán";
+        labelName.innerText = currentLang === 'en' ? "Customer Name / Table No:" : "Tên khách hàng / Số bàn:";
+        document.getElementById('customer-name').value = currentLang === 'en' ? "Table ..." : "Bàn số ...";
+        document.getElementById('customer-phone').value = currentLang === 'en' ? "Dine-in Guest" : "Khách tại quầy";
+        addressGroup.style.display = "none";
+      } else {
+        modalTitle.innerText = currentLang === 'en' ? "📍 Online Delivery Information" : "📍 Thông Tin Giao Hàng Online";
+        labelName.innerText = currentLang === 'en' ? "Full Name:" : "Họ và tên:";
+        document.getElementById('customer-name').value = "";
+        document.getElementById('customer-phone').value = "";
+        document.getElementById('customer-address').value = "";
+        addressGroup.style.display = "block";
+      }
+
+      document.getElementById('checkout-modal').style.display = 'flex';
+    }
+
+    function closeCheckoutModal() { document.getElementById('checkout-modal').style.display = 'none'; }
+
+    function checkCustomerPoints() {
+      const phone = document.getElementById('customer-phone').value.trim();
+      const infoBox = document.getElementById('loyalty-info-box');
+      if (!phone) return alert(currentLang === 'en' ? "Please enter phone number!" : "Vui lòng nhập số điện thoại!");
+
+      const c = customers[phone];
+      const usePointsLbl = document.getElementById('use-points-label');
+      
+      let pointsAvailable = c ? c.points : 0;
+      let maxDiscountVal = pointsAvailable * loyaltyPointValue;
+
+      usePointsLbl.innerText = currentLang === 'en' 
+        ? `Use points for discount (${pointsAvailable} pts = ${maxDiscountVal.toLocaleString()} VND)` 
+        : `Dùng điểm giảm giá (${pointsAvailable} điểm = ${maxDiscountVal.toLocaleString()}đ với tỷ lệ hiện tại)`;
+
+      if (c) {
+        const tier = getCustomerTier(c.totalSpent);
+        document.getElementById('loyalty-cust-name').innerText = c.name;
+        document.getElementById('loyalty-cust-tier').innerText = tier.name;
+        document.getElementById('loyalty-cust-tier').className = "tier-badge " + tier.class;
+        document.getElementById('loyalty-cust-points').innerText = c.points;
+        infoBox.style.display = 'block';
+      } else {
+        document.getElementById('loyalty-cust-name').innerText = currentLang === 'en' ? "New Customer" : "Khách hàng mới";
+        document.getElementById('loyalty-cust-tier').innerText = "Bronze";
+        document.getElementById('loyalty-cust-tier').className = "tier-badge tier-bronze";
+        document.getElementById('loyalty-cust-points').innerText = "0";
+        infoBox.style.display = 'block';
+      }
+    }
+
+    function toggleUsePoints() {
+      const isChecked = document.getElementById('use-points-checkbox').checked;
+      const phone = document.getElementById('customer-phone').value.trim();
+      const discountRow = document.getElementById('discount-row');
+      
+      if (isChecked) {
+        const c = customers[phone];
+        if (!c || c.points <= 0) {
+          alert(currentLang === 'en' ? "You don't have enough points!" : "Bạn chưa có điểm tích lũy nào!");
+          document.getElementById('use-points-checkbox').checked = false;
+          return;
+        }
+
+        let maxDiscountAllowed = c.points * loyaltyPointValue;
+        if (maxDiscountAllowed > currentOrderSubtotal) {
+          maxDiscountAllowed = currentOrderSubtotal;
+        }
+
+        currentDiscountAmount = maxDiscountAllowed;
+        discountRow.style.display = 'block';
+        document.getElementById('checkout-discount-val').innerText = currentDiscountAmount.toLocaleString() + 'đ';
+      } else {
+        currentDiscountAmount = 0;
+        discountRow.style.display = 'none';
+      }
+
+      const finalVal = currentOrderSubtotal - currentDiscountAmount;
+      document.getElementById('checkout-final-val').innerText = finalVal.toLocaleString() + 'đ';
+    }
+
+    function processOrderCheckout() {
+      const name = document.getElementById('customer-name').value.trim();
+      const phone = document.getElementById('customer-phone').value.trim();
+      const address = (selectedOrderType === 'onsite') ? (currentLang === 'en' ? "Dine-in / Direct Counter" : "Khách ăn tại quán / Tại quầy") : document.getElementById('customer-address').value.trim();
+
+      if (!name || !phone || (selectedOrderType === 'online' && !address)) {
+        return alert(i18n[currentLang].alertFillInfo);
+      }
+
+      let orderItems = [];
+      for (let id in cart) {
+        const item = products.find(p => p.id == id);
+        if (item) {
+          const itemTotal = item.price * cart[id];
+          const itemName = currentLang === 'en' ? (item.nameEn || item.name) : item.name;
+          orderItems.push({ name: itemName, qty: cart[id], price: itemTotal });
+        }
+      }
+
+      const finalAmount = currentOrderSubtotal - currentDiscountAmount;
+
+      if (currentDiscountAmount > 0 && customers[phone]) {
+        const pointsUsed = Math.ceil(currentDiscountAmount / loyaltyPointValue);
+        customers[phone].points = Math.max(0, customers[phone].points - pointsUsed);
+        saveCustomersToStorage();
+      }
+
+      closeCheckoutModal();
+
+      if (selectedPaymentMethod === 'qr') {
+        let orderObj = {
+          id: Date.now(),
+          customerName: name,
+          customerPhone: phone,
+          customerAddress: address,
+          items: orderItems,
+          total: finalAmount,
+          time: getFormattedCurrentTime(),
+          status: selectedOrderType === 'onsite' ? (currentLang === 'en' ? 'Success' : 'Giao thành công') : (currentLang === 'en' ? 'Pending' : 'Chờ xác nhận'),
+          paymentStatus: currentLang === 'en' ? 'Unpaid' : 'Chưa thanh toán',
+          paymentMethod: 'qr'
+        };
+        
+        if (selectedOrderType === 'onsite') {
+          orders.unshift(orderObj);
+          saveOrdersToStorage();
+          renderAdminOrders();
+          renderStaffOrders();
+          cart = {};
+          updateCartUI();
+        }
+
+        showQRPaymentModal(finalAmount, orderObj, selectedOrderType === 'onsite');
+      } else {
+        if (selectedOrderType === 'onsite') {
+          const newOrder = {
+            id: Date.now(),
+            customerName: name,
+            customerPhone: phone,
+            customerAddress: address,
+            items: orderItems,
+            total: finalAmount,
+            time: getFormattedCurrentTime(),
+            status: currentLang === 'en' ? 'Success' : 'Giao thành công',
+            paymentStatus: currentLang === 'en' ? 'Unpaid' : 'Chưa thanh toán',
+            paymentMethod: 'cash'
+          };
+          orders.unshift(newOrder);
+          saveOrdersToStorage();
+
+          cart = {};
+          updateCartUI();
+          alert(currentLang === 'en' ? "Dine-in order created successfully!" : "Đã tạo đơn tại quầy thành công!");
+          showCustomerView();
+        } else {
+          let message = `🛒 *NEW ORDER FROM WEBSITE*\n👤 Customer: ${name}\n📞 Phone: ${phone}\n📍 Address: ${address}\n-------------------------\n📋 *DETAILS:*\n`;
+          for (let id in cart) {
+            const item = products.find(p => p.id == id);
+            if (item) {
+              const itemTotal = item.price * cart[id];
+              const itemName = currentLang === 'en' ? (item.nameEn || item.name) : item.name;
+              message += `- ${itemName} x${cart[id]}: ${itemTotal.toLocaleString()}đ\n`;
+            }
+          }
+          if (currentDiscountAmount > 0) {
+            message += `🎁 Points Discount: -${currentDiscountAmount.toLocaleString()}đ\n`;
+          }
+          message += `-------------------------\n💰 *TOTAL: ${finalAmount.toLocaleString()}đ*`;
+
+          const newOrder = {
+            id: Date.now(),
+            customerName: name,
+            customerPhone: phone,
+            customerAddress: address,
+            items: orderItems,
+            total: finalAmount,
+            time: getFormattedCurrentTime(),
+            status: currentLang === 'en' ? 'Pending' : 'Chờ xác nhận',
+            paymentStatus: currentLang === 'en' ? 'Paid' : 'Đã thanh toán',
+            paymentMethod: 'cod'
+          };
+          orders.unshift(newOrder);
+          saveOrdersToStorage();
+
+          window.open(`https://zalo.me/${ZALO_PHONE}?text=${encodeURIComponent(message)}`, '_blank');
+
+          cart = {};
+          updateCartUI();
+          alert(i18n[currentLang].alertOrderSuccess);
+        }
+      }
+    }
+
+    function addNewProduct(e) {
+      e.preventDefault();
+      const name = document.getElementById('new-p-name').value;
+      const nameEn = document.getElementById('new-p-name-en').value;
+      const category = document.getElementById('new-p-category').value;
+      const price = parseInt(document.getElementById('new-p-price').value);
+      const cost = parseInt(document.getElementById('new-p-cost').value) || 0;
+      const desc = document.getElementById('new-p-desc').value;
+      const descEn = document.getElementById('new-p-desc-en').value;
+      const img = temporaryImageData || "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=300";
+
+      const newProduct = { id: Date.now(), name, nameEn, category, price, cost, desc, descEn, img };
+      products.push(newProduct);
+      saveProductsToStorage();
+      
+      alert(currentLang === 'en' ? "New item added successfully!" : "Đã thêm món mới thành công!");
+      document.getElementById('add-product-form').reset();
+      
+      temporaryImageData = "";
+      document.getElementById('image-preview').src = '';
+      document.getElementById('image-preview').style.display = 'none';
+      document.getElementById('preview-text').style.display = 'block';
+
+      renderAdminMenuList();
+      renderMenu(products);
+    }
+
+    function renderAdminMenuList() {
+      const container = document.getElementById('admin-menu-list');
+      if (!container) return;
+      if (products.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:#888;">${currentLang === 'en' ? 'No items yet!' : 'Chưa có món nào!'}</p>`;
+        return;
+      }
+      container.innerHTML = products.map(p => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #eee; flex-wrap:wrap; gap:8px;">
+          <div style="flex-grow:1;">
+            <strong>${p.name}</strong> / <em style="color:#555;">${p.nameEn || p.name}</em><br>
+            <span style="font-size:0.8rem; color:#666;">${currentLang === 'en' ? 'Sell' : 'Bán'}: <strong style="color:#e63946">${p.price.toLocaleString()}đ</strong> | ${currentLang === 'en' ? 'Cost' : 'Vốn'}: <strong style="color:#e67e22">${(p.cost || 0).toLocaleString()}đ</strong></span>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+            <input type="number" id="edit-price-${p.id}" value="${p.price}" placeholder="${currentLang === 'en' ? 'New price' : 'Giá bán mới'}" style="width:90px; padding:4px; font-size:0.8rem; border:1px solid #ccc; border-radius:4px;">
+            <button onclick="updateProductPrice(${p.id})" style="background:#27ae60; color:white; border:none; padding:5px 8px; border-radius:4px; font-size:0.8rem; cursor:pointer;">${i18n[currentLang].editPriceBtn}</button>
+            
+            <input type="number" id="edit-cost-${p.id}" value="${p.cost || 0}" placeholder="${currentLang === 'en' ? 'New cost' : 'Giá vốn mới'}" style="width:90px; padding:4px; font-size:0.8rem; border:1px solid #ccc; border-radius:4px;">
+            <button onclick="updateProductCost(${p.id})" style="background:#2980b9; color:white; border:none; padding:5px 8px; border-radius:4px; font-size:0.8rem; cursor:pointer;">${i18n[currentLang].editCostBtn}</button>
+            
+            <button onclick="deleteProduct(${p.id})" style="background:#ff4d4d; color:white; border:none; padding:5px 8px; border-radius:4px; font-size:0.8rem; cursor:pointer;">${i18n[currentLang].deleteBtn}</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateProductPrice(id) {
+      const inputVal = document.getElementById(`edit-price-${id}`).value;
+      const newPrice = parseInt(inputVal);
+      if (isNaN(newPrice) || newPrice < 0) return alert(currentLang === 'en' ? "Invalid selling price!" : "Vui lòng nhập giá bán hợp lệ!");
+
+      const product = products.find(p => p.id === id);
+      if (product) {
+        product.price = newPrice;
+        saveProductsToStorage();
+        renderAdminMenuList();
+        renderMenu(products);
+        alert(currentLang === 'en' ? `Updated selling price for "${product.name}" successfully!` : `Đã cập nhật giá bán cho món "${product.name}" thành công!`);
+      }
+    }
+
+    function updateProductCost(id) {
+      const inputVal = document.getElementById(`edit-cost-${id}`).value;
+      const newCost = parseInt(inputVal);
+      if (isNaN(newCost) || newCost < 0) return alert(currentLang === 'en' ? "Invalid cost price!" : "Vui lòng nhập giá vốn hợp lệ!");
+
+      const product = products.find(p => p.id === id);
+      if (product) {
+        product.cost = newCost;
+        saveProductsToStorage();
+        renderAdminMenuList();
+        calculateRevenue();
+        alert(currentLang === 'en' ? `Updated cost price for "${product.name}" successfully!` : `Đã cập nhật giá vốn cho món "${product.name}" thành công!`);
+      }
+    }
+
+    function deleteProduct(id) {
+      if (confirm(currentLang === 'en' ? "Confirm deletion of this item?" : "Vui lòng xác nhận xóa món này khỏi menu?")) {
+        products = products.filter(p => p.id !== id);
+        saveProductsToStorage();
+        renderAdminMenuList();
+        renderMenu(products);
+        calculateRevenue();
+      }
+    }
+
+    function initApp() {
+      setLanguage(currentLang);
+      updateUIState();
+      renderMenu(products);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
+  </script>
+</body>
+</html>
